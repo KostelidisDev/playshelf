@@ -1,0 +1,16 @@
+*
+!index.html
+!package.json
+!package-lock.json
+!tsconfig*.json
+!vite.config.ts
+!vite.sw.config.ts
+!build
+!src
+!public
+# Real data is mounted at runtime, never built into the image.
+public/assets/api
+public/assets/thumbnails
+!site.conf
+!docker-entrypoint.sh
+!sync-thumbnails.sh

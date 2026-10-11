@@ -1,0 +1,13 @@
+.idea
+.npm-cache
+dist
+node_modules
+.env
+# Real data, for local development only: the container mounts its own
+# (docker-compose.yml).
+public/assets/api/*.csv
+public/assets/thumbnails/*.webp
+.claude
+.mcp.json
+
+.DS_Store

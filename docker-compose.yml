@@ -1,0 +1,116 @@
+name: ${INSTANCE_NAME:-playshelf}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+    compress: "true"
+
+services:
+  playshelf:
+    image: ${IMAGE_NAME:-ghcr.io/kostelidisdev/playshelf}:${IMAGE_TAG:-latest}
+    container_name: ${INSTANCE_NAME:-playshelf}
+    restart: unless-stopped
+    read_only: true
+    # An init process, to reap the thumbnail sync's finished processes.
+    init: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: "${TZ:-Europe/Athens}"
+      # The site's name (page title, app bar, installed app). Read when the
+      # container starts: changing it needs a restart, not a rebuild.
+      CHANNEL_NAME: "${CHANNEL_NAME:-PlayShelf}"
+      # Downloads the missing thumbnails of the videos in videos.csv as WebP,
+      # in the background, checking again every THUMBNAILS_SYNC_INTERVAL
+      # seconds.
+      THUMBNAILS_SYNC: "${THUMBNAILS_SYNC:-true}"
+      THUMBNAILS_SYNC_INTERVAL: "${THUMBNAILS_SYNC_INTERVAL:-3600}"
+      THUMBNAILS_WIDTH: "${THUMBNAILS_WIDTH:-640}"
+      THUMBNAILS_QUALITY: "${THUMBNAILS_QUALITY:-80}"
+      THUMBNAILS_JOBS: "${THUMBNAILS_JOBS:-4}"
+    # The catalog (videos.csv, read-only) and the thumbnails (written by the
+    # sync) live outside the image; the volumes are defined at the end. With
+    # nocopy, Docker never copies the image's empty directory into the data
+    # mount. The thumbnails volume is created from the image's directory, so
+    # it belongs to www-data from the start.
+    volumes:
+      - type: volume
+        source: data
+        target: /usr/local/apache2/htdocs/assets/api
+        read_only: true
+        volume:
+          nocopy: true
+      - type: volume
+        source: thumbnails
+        target: /usr/local/apache2/htdocs/assets/thumbnails
+    networks:
+      - playshelf
+    ports:
+      - "8080:8080"
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+      start_interval: 5s
+    deploy:
+      resources:
+        limits:
+          # noinspection ComposeUnknownValues
+          cpus: "${PLAYSHELF_CPU_LIMIT:-0.5}"
+          # noinspection ComposeUnknownValues
+          memory: "${PLAYSHELF_MEMORY_LIMIT:-64M}"
+          # noinspection ComposeUnknownValues
+          pids: ${PLAYSHELF_PIDS_LIMIT:-100}
+        reservations:
+          # noinspection ComposeUnknownValues
+          memory: "${PLAYSHELF_MEMORY_RESERVATION:-32M}"
+    labels:
+      - "traefik.enable=true"
+      # Router. TLS comes from the websecure entrypoint's default wildcard
+      # certificate.
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.rule=Host(`${DOMAIN:?DOMAIN is required}`)"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.entrypoints=websecure"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.service=${INSTANCE_NAME:-playshelf}"
+      # strict-path@file is a shared policy from the Traefik stack: a static
+      # site needs no encoded characters in its paths.
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.middlewares=${INSTANCE_NAME:-playshelf}-auth,strict-path@file"
+      # Middlewares
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-auth.basicauth.users=${PLAYSHELF_AUTH:?PLAYSHELF_AUTH is required}"
+      # Service
+      - "traefik.http.services.${INSTANCE_NAME:-playshelf}.loadbalancer.server.port=8080"
+
+networks:
+  playshelf:
+    name: ${INSTANCE_NAME:-playshelf}
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: ${PLAYSHELF_NETWORK_SUBNET_V4:-10.100.0.0/24}
+        - subnet: ${PLAYSHELF_NETWORK_SUBNET_V6:-fd00:100::/64}
+
+# data holds videos.csv: a bind mount, an NFS export or a CIFS/SMB share, set
+# by the three PLAYSHELF_DATA_VOLUME_* variables (examples in .env.example).
+# The container runs as uid/gid 82 (www-data), which must be able to read
+# it. Docker keeps a volume's settings from when it was created: after
+# changing them, `docker compose down` and `docker volume rm` the volume.
+# thumbnails is a plain Docker volume; if it's removed, the sync downloads
+# the thumbnails again.
+volumes:
+  data:
+    name: ${INSTANCE_NAME:-playshelf}-data
+    driver: local
+    driver_opts:
+      type: "${PLAYSHELF_DATA_VOLUME_TYPE:-none}"
+      o: "${PLAYSHELF_DATA_VOLUME_OPTIONS:-bind}"
+      device: "${PLAYSHELF_DATA_VOLUME_DEVICE:?PLAYSHELF_DATA_VOLUME_DEVICE is required}"
+  thumbnails:
+    name: ${INSTANCE_NAME:-playshelf}-thumbnails
