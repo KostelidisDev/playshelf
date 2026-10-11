@@ -85,9 +85,7 @@ services:
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.service=${INSTANCE_NAME:-playshelf}"
       # strict-path@file is a shared policy from the Traefik stack: a static
       # site needs no encoded characters in its paths.
-      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.middlewares=${INSTANCE_NAME:-playshelf}-auth,strict-path@file"
-      # Middlewares
-      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-auth.basicauth.users=${PLAYSHELF_AUTH:?PLAYSHELF_AUTH is required}"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.middlewares=strict-path@file"
       # Service
       - "traefik.http.services.${INSTANCE_NAME:-playshelf}.loadbalancer.server.port=8080"
 
