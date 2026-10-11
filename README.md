@@ -53,14 +53,14 @@ npm run build      # type-check and build into dist/
 npm run preview    # serve dist/ with the production Content-Security-Policy
 ```
 
-`CHANNEL_NAME=... npm run dev` (or `preview`) shows a different channel name
+`SITE_NAME=... npm run dev` (or `preview`) shows a different site name
 locally; it defaults to `PlayShelf`.
 
 ## Docker
 
 ```sh
 docker build -t playshelf .
-docker run --rm -p 8080:8080 -e CHANNEL_NAME="Some Channel" \
+docker run --rm -p 8080:8080 -e SITE_NAME="Some Site" \
   -v "$PWD/public/assets/api:/usr/local/apache2/htdocs/assets/api:ro" \
   -v "$PWD/thumbnails:/usr/local/apache2/htdocs/assets/thumbnails" \
   playshelf
@@ -76,11 +76,11 @@ image. Build arguments:
 | `NODE_TAG`      | `26.11.1-alpine3.24`         | Node image used for the build (Node 26 LTS).                     |
 | `HTTPD_TAG`     | `2.4.69-alpine3.24`          | Apache image that serves the site.                               |
 
-### Channel name
+### Site name
 
-`index.html` and `manifest.webmanifest` contain a `__CHANNEL_NAME__`
+`index.html` and `manifest.webmanifest` contain a `__SITE_NAME__`
 placeholder. When the container starts,
-`docker-entrypoint.sh` escapes `CHANNEL_NAME` for HTML and JSON, and Apache
+`docker-entrypoint.sh` escapes `SITE_NAME` for HTML and JSON, and Apache
 (`site.conf`) fills it in as those files are served. Changing the name only
 needs a restart, not a rebuild. The files in the image stay read-only.
 
@@ -156,23 +156,23 @@ the thumbnails again.
   run `docker compose down`, then `docker volume rm <INSTANCE_NAME>-data`,
   then `docker compose up -d`.
 
-`.env.example` lists every setting and its default. To run several channels
+`.env.example` lists every setting and its default. To run several sites
 on one host, give each instance its own `.env` with a distinct
 `INSTANCE_NAME` and network subnets.
 
 ## Project layout
 
 ```
-build/                 Build-time helpers: CSP, service worker shell, version, channel name
+build/                 Build-time helpers: CSP, service worker shell, version, site name
 public/                Static files: icons, web manifest, demo catalog (plus a local, git-ignored one)
 src/components/        React components
 src/hooks/             React hooks
 src/lib/               Pure logic: CSV parsing, routing, pagination, text
 src/sw/                Service worker (offline support)
 src/ui/                Browser helpers: brand, version, tint, SW registration
-site.conf              Apache config: headers, caching, channel name, demo catalog
+site.conf              Apache config: headers, caching, site name, demo catalog
 CLAUDE.md              Notes for Claude Code: commands, invariants, conventions
-docker-entrypoint.sh   Escapes CHANNEL_NAME and starts the thumbnail sync
+docker-entrypoint.sh   Escapes SITE_NAME and starts the thumbnail sync
 sync-thumbnails.sh     Downloads missing thumbnails as WebP
 ```
 

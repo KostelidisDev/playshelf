@@ -2,13 +2,13 @@
  * server that doesn't replace the placeholder). */
 export const DEFAULT_BRAND = "PlayShelf";
 
-/** An unreplaced placeholder, such as `__CHANNEL_NAME__`. */
+/** An unreplaced placeholder, such as `__SITE_NAME__`. */
 const PLACEHOLDER = /^__\w+__$/;
 
-/** The channel name, from `<meta name="application-name">`. The server
- * fills it in from CHANNEL_NAME as the page is served (site.conf), so one
- * build serves any channel. */
-export function channelName(doc: Document = document): string {
+/** The site name, from `<meta name="application-name">`. The server
+ * fills it in from SITE_NAME as the page is served (site.conf), so one
+ * build serves any site. */
+export function siteName(doc: Document = document): string {
   const name = doc.querySelector<HTMLMetaElement>('meta[name="application-name"]')?.content.trim();
   return name && !PLACEHOLDER.test(name) ? name : DEFAULT_BRAND;
 }

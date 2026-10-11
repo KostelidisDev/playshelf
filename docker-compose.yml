@@ -25,7 +25,7 @@ services:
       TZ: "${TZ:-Europe/Athens}"
       # The site's name (page title, app bar, installed app). Read when the
       # container starts: changing it needs a restart, not a rebuild.
-      CHANNEL_NAME: "${CHANNEL_NAME:-PlayShelf}"
+      SITE_NAME: "${SITE_NAME:-PlayShelf}"
       # Downloads the missing thumbnails of the videos in videos.csv as WebP,
       # in the background, checking again every THUMBNAILS_SYNC_INTERVAL
       # seconds.

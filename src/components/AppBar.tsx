@@ -2,11 +2,11 @@ import { useRef, type MouseEvent, type ReactNode } from "react";
 import { useHeaderHeight } from "../hooks/useHeaderHeight.ts";
 import { useInstallPrompt } from "../hooks/useInstallPrompt.ts";
 import { isPlainClick } from "../lib/events.ts";
-import { channelName } from "../ui/brand.ts";
+import { siteName } from "../ui/brand.ts";
 import { buildVersion } from "../ui/version.ts";
 import { BackIcon, GamepadIcon, InstallIcon } from "./Icons.tsx";
 
-export const BRAND = channelName();
+export const BRAND = siteName();
 
 interface Props {
   view: "home" | "game";
