@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <!-- __SITE_NAME__ is replaced as the page is served: by Apache from
-       the SITE_NAME environment variable (site.conf), or by
-       build/site-name.ts under `vite dev` and `vite preview`. The app reads the
-       name from the application-name meta tag. -->
+  <!-- __SITE_NAME__ and __SITE_DESCRIPTION__ are replaced as the page is
+       served: by Apache from the SITE_NAME and SITE_DESCRIPTION environment
+       variables (site.conf), or by build/site.ts under `vite dev` and
+       `vite preview`. The app reads the name from the application-name
+       meta tag. -->
   <title>__SITE_NAME__</title>
   <meta name="application-name" content="__SITE_NAME__">
-  <meta name="description" content="A hand-picked collection of YouTube videos, from any creator, grouped by game.">
+  <meta name="description" content="__SITE_DESCRIPTION__">
   <meta name="author" content="__SITE_NAME__">
   <meta name="publisher" content="__SITE_NAME__">
   <meta name="color-scheme" content="dark">

@@ -2,7 +2,7 @@
   "id": "./",
   "name": "__SITE_NAME__",
   "short_name": "__SITE_NAME__",
-  "description": "A hand-picked collection of YouTube videos, from any creator, grouped by game.",
+  "description": "__SITE_DESCRIPTION__",
   "lang": "en",
   "start_url": "./",
   "scope": "./",

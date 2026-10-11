@@ -1,7 +1,7 @@
 /// <reference types="vitest/config" />
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import { siteNamePlugin } from "./build/site-name.ts";
+import { sitePlugin } from "./build/site.ts";
 import { sitePolicy } from "./build/csp.ts";
 import { APP_ASSETS_DIR } from "./build/shell.ts";
 import { appVersion } from "./build/version.ts";
@@ -10,7 +10,7 @@ import { appVersion } from "./build/version.ts";
 // second build, run after this one: vite.sw.config.ts.
 export default defineConfig({
   base: "./",
-  plugins: [react(), siteNamePlugin()],
+  plugins: [react(), sitePlugin()],
   define: {
     __APP_VERSION__: JSON.stringify(appVersion()),
   },
