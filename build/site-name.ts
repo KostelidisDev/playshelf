@@ -1,20 +1,20 @@
-/* Fills in the channel name under `vite dev` and `vite preview`. In the
- * container, Apache replaces the __CHANNEL_NAME__ placeholders in
- * index.html and the web manifest with CHANNEL_NAME as they're served
+/* Fills in the site name under `vite dev` and `vite preview`. In the
+ * container, Apache replaces the __SITE_NAME__ placeholders in
+ * index.html and the web manifest with SITE_NAME as they're served
  * (site.conf, docker-entrypoint.sh). This plugin does the same locally, so
- * the build itself never contains a channel name. */
+ * the build itself never contains a site name. */
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Connect, Plugin } from "vite";
 
-export const PLACEHOLDER = "__CHANNEL_NAME__";
-export const DEFAULT_CHANNEL_NAME = "PlayShelf";
+export const PLACEHOLDER = "__SITE_NAME__";
+export const DEFAULT_SITE_NAME = "PlayShelf";
 
-/** CHANNEL_NAME, trimmed, or the default. A single line of text only. */
-export function channelName(env: NodeJS.ProcessEnv = process.env): string {
-  const name = env.CHANNEL_NAME?.trim() || DEFAULT_CHANNEL_NAME;
-  if (/[\p{Cc}]/u.test(name)) throw new Error(`Invalid CHANNEL_NAME: ${JSON.stringify(name)}`);
+/** SITE_NAME, trimmed, or the default. A single line of text only. */
+export function siteName(env: NodeJS.ProcessEnv = process.env): string {
+  const name = env.SITE_NAME?.trim() || DEFAULT_SITE_NAME;
+  if (/[\p{Cc}]/u.test(name)) throw new Error(`Invalid SITE_NAME: ${JSON.stringify(name)}`);
   return name;
 }
 
@@ -46,10 +46,10 @@ function fillMiddleware(dir: string, name: string, html: boolean): Connect.NextH
   };
 }
 
-export function channelNamePlugin(): Plugin {
-  const name = channelName();
+export function siteNamePlugin(): Plugin {
+  const name = siteName();
   return {
-    name: "channel-name",
+    name: "site-name",
     // Under `vite dev`, Vite serves the HTML itself (adding its client), so
     // the name is filled in here; the manifest comes from public/.
     transformIndexHtml: { order: "pre", handler: (html, ctx) => (ctx.server ? fillHtml(html, name) : html) },

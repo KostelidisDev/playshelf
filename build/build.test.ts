@@ -2,7 +2,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { channelName, DEFAULT_CHANNEL_NAME, fillHtml, fillJson } from "./channel.ts";
+import { DEFAULT_SITE_NAME, fillHtml, fillJson, siteName } from "./site-name.ts";
 import { sitePolicy } from "./csp.ts";
 import { shellFiles } from "./shell.ts";
 import { appVersion } from "./version.ts";
@@ -46,16 +46,16 @@ describe("sitePolicy", () => {
   });
 });
 
-describe("channel name", () => {
+describe("site name", () => {
   it("defaults, trims and rejects control characters", () => {
-    expect(channelName({})).toBe(DEFAULT_CHANNEL_NAME);
-    expect(channelName({ CHANNEL_NAME: " Some Channel " })).toBe("Some Channel");
-    expect(() => channelName({ CHANNEL_NAME: "a\nb" })).toThrow("Invalid CHANNEL_NAME");
+    expect(siteName({})).toBe(DEFAULT_SITE_NAME);
+    expect(siteName({ SITE_NAME: " Some Site " })).toBe("Some Site");
+    expect(() => siteName({ SITE_NAME: "a\nb" })).toThrow("Invalid SITE_NAME");
   });
 
   it("escapes the name for HTML and JSON", () => {
-    expect(fillHtml('<title>__CHANNEL_NAME__</title>', `Tom & "Jerry"<'>`))
+    expect(fillHtml('<title>__SITE_NAME__</title>', `Tom & "Jerry"<'>`))
       .toBe("<title>Tom &amp; &quot;Jerry&quot;&lt;&#39;&gt;</title>");
-    expect(JSON.parse(fillJson('{"name":"__CHANNEL_NAME__"}', 'a"b\\c'))).toEqual({ name: 'a"b\\c' });
+    expect(JSON.parse(fillJson('{"name":"__SITE_NAME__"}', 'a"b\\c'))).toEqual({ name: 'a"b\\c' });
   });
 });
