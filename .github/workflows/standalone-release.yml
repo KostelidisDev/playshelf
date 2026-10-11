@@ -1,0 +1,81 @@
+name: Standalone release
+
+# Builds the site for a managed Apache or shared host (no container) and
+# attaches one zip per site to the GitHub release: the default PlayShelf
+# site and Kostelidis.dev. Each zip is a document root, ready to upload; the
+# webmaster adds videos.csv and the thumbnails (see "Standalone (shared
+# hosting)" in README.md). A manual run builds the zips as a workflow
+# artifact instead, without a release.
+
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+jobs:
+  build:
+
+    runs-on: ubuntu-26.04
+    permissions:
+      # Attaching files to the release.
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Test
+        run: npm test
+
+      # The release's tag is the version shown in the app bar; a manual run
+      # gets a dated one, as the Docker build does.
+      - name: Build
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          APP_VERSION="${TAG:-$(TZ=Europe/Athens date +'v%Y.%m.%d-build%H%M%S')}"
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          npm run build
+
+      # The build has no site name or description in it; each standalone
+      # site gets its own (build/standalone.ts).
+      - name: Package the PlayShelf site
+        run: npm run standalone -- standalone/playshelf
+
+      - name: Package the Kostelidis.dev site
+        env:
+          SITE_NAME: Kostelidis.dev
+          SITE_DESCRIPTION: My Gaming Videos Organized By Game Titles
+        run: npm run standalone -- standalone/kostelidis-dev
+
+      # Each zip holds the site's files at its top level, .htaccess included.
+      - name: Zip
+        run: |
+          mkdir release
+          for site in playshelf kostelidis-dev; do
+            (cd "standalone/$site" && zip -qr -X "../../release/$site-$APP_VERSION.zip" .)
+          done
+          ls -l release
+
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" release/*.zip --clobber
+
+      - name: Upload as a workflow artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: standalone-${{ env.APP_VERSION }}
+          path: release/*.zip

@@ -9,6 +9,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build && vite build --config vite.sw.config.ts",
     "preview": "vite preview",
+    "standalone": "node build/standalone.ts",
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -16,6 +16,7 @@ npm test           # Vitest, once
 npm run typecheck  # tsc -b
 npm run build      # typecheck + app build + service worker build into dist/
 npm run preview    # serve dist/ under the production CSP from site.conf
+npm run standalone -- <dir>   # after build: dist/ for a shared host, in <dir>
 docker build -t playshelf .   # runs the tests, then builds the image
 ```
 
@@ -32,7 +33,9 @@ also check it in `npm run preview` or a built image.
 - `src/sw/`: the service worker, built separately (`vite.sw.config.ts`).
   `strategy.ts` holds its pure, tested parts.
 - `build/`: build-time helpers used by the Vite configs (CSP, shell file
-  list, version, site settings), tested in `build/build.test.ts`.
+  list, version, site settings), and `standalone.ts`, which turns dist/
+  into a site for a shared host (settings filled in, an `.htaccess` made
+  from site.conf). All tested in `build/build.test.ts`.
 - `site.conf`: Apache config (headers, CSP, caching, site settings, demo
   catalog rewrite). `docker-entrypoint.sh` and `sync-thumbnails.sh` run in
   the container.
@@ -50,7 +53,8 @@ are in `src/test/`.
 - **Site settings**: the build is brand-neutral. `index.html` and the web
   manifest carry `__SITE_NAME__` and `__SITE_DESCRIPTION__`, filled in at
   serve time (Apache in the container, `build/site.ts` locally), escaped by
-  `docker-entrypoint.sh`. Never bake a name or description into the build.
+  `docker-entrypoint.sh`. Never bake a name or description into the build;
+  only the standalone sites (`build/standalone.ts`) fill them in, after it.
 - **Catalog**: one CSV, `assets/api/videos.csv` (format in README.md). It
   must stay in sync with the manager's export
   (`manager/creator_manager/storage/site_csv.py`). Real data is never

@@ -1,6 +1,7 @@
 .idea
 .npm-cache
 dist
+standalone
 node_modules
 .env
 # Real data, for local development only: the container mounts its own
