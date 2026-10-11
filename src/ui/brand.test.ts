@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { siteName, DEFAULT_BRAND } from "./brand.ts";
+import { DEFAULT_BRAND, siteName } from "./brand.ts";
 
 function setMeta(content: string) {
   const meta = document.createElement("meta");

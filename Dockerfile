@@ -30,7 +30,7 @@ FROM httpd:${HTTPD_TAG}
 RUN apk add --no-cache libwebp-tools
 
 # - Turn on compression, cache headers, placeholder substitution (the
-#   site name) and rewrites (the demo catalog)
+#   site's name and description) and rewrites (the demo catalog)
 # - Listen on 8080: an unprivileged user can't bind ports below 1024
 # - Hide the Apache version in headers and error pages
 # - Keep the PID file and runtime files in /tmp, since www-data can't write
@@ -59,9 +59,11 @@ COPY --link --from=build /app/dist/ htdocs/
 RUN mkdir -p htdocs/assets/api htdocs/assets/thumbnails \
     && chown www-data:www-data htdocs/assets/thumbnails
 
-# The site's name (page title, app bar, installed app), read when the
-# container starts, so changing it needs no rebuild (docker run -e SITE_NAME=...).
-ENV SITE_NAME=PlayShelf
+# The site's name (page title, app bar, installed app) and description
+# (search results, link previews, installed app), read when the container
+# starts, so changing them needs no rebuild (docker run -e SITE_NAME=...).
+ENV SITE_NAME=PlayShelf \
+    SITE_DESCRIPTION="A hand-picked collection of YouTube videos, from any creator, grouped by game."
 # The thumbnail sync (sync-thumbnails.sh): on or off, how often it checks
 # videos.csv again (seconds; 0 checks only at start), the WebP width and
 # quality, and how many downloads run at once.

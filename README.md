@@ -3,8 +3,8 @@
 A hand-picked collection of YouTube videos, grouped by game. The catalog is
 put together by hand and can hold videos from any creators. A static,
 installable web app (React + TypeScript, built with Vite) served by Apache in
-a hardened container. One image serves any catalog: the site's name is set
-at runtime.
+a hardened container. One image serves any catalog: the site's name and
+description are set at runtime.
 
 - Browse games alphabetically, search (accent-insensitive), and page through
   each game's videos, newest first.
@@ -53,8 +53,9 @@ npm run build      # type-check and build into dist/
 npm run preview    # serve dist/ with the production Content-Security-Policy
 ```
 
-`SITE_NAME=... npm run dev` (or `preview`) shows a different site name
-locally; it defaults to `PlayShelf`.
+`SITE_NAME=...` and `SITE_DESCRIPTION=...` before `npm run dev` (or
+`preview`) set the site's name and description locally; they default to
+`PlayShelf` and "A hand-picked collection of YouTube videos, from any creator, grouped by game."
 
 ## Docker
 
@@ -76,13 +77,19 @@ image. Build arguments:
 | `NODE_TAG`      | `26.11.1-alpine3.24`         | Node image used for the build (Node 26 LTS).                     |
 | `HTTPD_TAG`     | `2.4.69-alpine3.24`          | Apache image that serves the site.                               |
 
-### Site name
+### Site name and description
 
-`index.html` and `manifest.webmanifest` contain a `__SITE_NAME__`
-placeholder. When the container starts,
-`docker-entrypoint.sh` escapes `SITE_NAME` for HTML and JSON, and Apache
-(`site.conf`) fills it in as those files are served. Changing the name only
-needs a restart, not a rebuild. The files in the image stay read-only.
+| Variable           | Default                         | Shown in                                      |
+| ------------------ | ------------------------------- | --------------------------------------------- |
+| `SITE_NAME`        | `PlayShelf`                     | Page title, app bar, installed app.           |
+| `SITE_DESCRIPTION` | "A hand-picked collection of …" | Search results, link previews, installed app. |
+
+`index.html` and `manifest.webmanifest` contain `__SITE_NAME__` and
+`__SITE_DESCRIPTION__` placeholders. When the container starts,
+`docker-entrypoint.sh` escapes both settings for HTML and JSON, and Apache
+(`site.conf`) fills them in as those files are served. Each must be one line
+of text. Changing them only needs a restart, not a rebuild. The files in the
+image stay read-only.
 
 ### Thumbnail sync
 
@@ -163,16 +170,16 @@ on one host, give each instance its own `.env` with a distinct
 ## Project layout
 
 ```
-build/                 Build-time helpers: CSP, service worker shell, version, site name
+build/                 Build-time helpers: CSP, service worker shell, version, site settings
 public/                Static files: icons, web manifest, demo catalog (plus a local, git-ignored one)
 src/components/        React components
 src/hooks/             React hooks
 src/lib/               Pure logic: CSV parsing, routing, pagination, text
 src/sw/                Service worker (offline support)
 src/ui/                Browser helpers: brand, version, tint, SW registration
-site.conf              Apache config: headers, caching, site name, demo catalog
+site.conf              Apache config: headers, caching, site settings, demo catalog
 CLAUDE.md              Notes for Claude Code: commands, invariants, conventions
-docker-entrypoint.sh   Escapes SITE_NAME and starts the thumbnail sync
+docker-entrypoint.sh   Escapes the site settings and starts the thumbnail sync
 sync-thumbnails.sh     Downloads missing thumbnails as WebP
 ```
 

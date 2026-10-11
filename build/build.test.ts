@@ -2,9 +2,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { DEFAULT_SITE_NAME, fillHtml, fillJson, siteName } from "./site-name.ts";
 import { sitePolicy } from "./csp.ts";
 import { shellFiles } from "./shell.ts";
+import { DEFAULT_SITE_DESCRIPTION, DEFAULT_SITE_NAME, fillHtml, fillJson, siteSettings } from "./site.ts";
 import { appVersion } from "./version.ts";
 
 describe("appVersion", () => {
@@ -46,16 +46,24 @@ describe("sitePolicy", () => {
   });
 });
 
-describe("site name", () => {
-  it("defaults, trims and rejects control characters", () => {
-    expect(siteName({})).toBe(DEFAULT_SITE_NAME);
-    expect(siteName({ SITE_NAME: " Some Site " })).toBe("Some Site");
-    expect(() => siteName({ SITE_NAME: "a\nb" })).toThrow("Invalid SITE_NAME");
+describe("site settings", () => {
+  it("default, trim and reject control characters", () => {
+    expect(siteSettings({})).toEqual({ name: DEFAULT_SITE_NAME, description: DEFAULT_SITE_DESCRIPTION });
+    expect(siteSettings({ SITE_NAME: " Some Site ", SITE_DESCRIPTION: " About it. " }))
+      .toEqual({ name: "Some Site", description: "About it." });
+    expect(() => siteSettings({ SITE_NAME: "a\nb" })).toThrow("Invalid SITE_NAME");
+    expect(() => siteSettings({ SITE_DESCRIPTION: "a\tb" })).toThrow("Invalid SITE_DESCRIPTION");
   });
 
-  it("escapes the name for HTML and JSON", () => {
-    expect(fillHtml('<title>__SITE_NAME__</title>', `Tom & "Jerry"<'>`))
-      .toBe("<title>Tom &amp; &quot;Jerry&quot;&lt;&#39;&gt;</title>");
-    expect(JSON.parse(fillJson('{"name":"__SITE_NAME__"}', 'a"b\\c'))).toEqual({ name: 'a"b\\c' });
+  it("escape each setting for HTML and JSON", () => {
+    const site = { name: `Tom & "Jerry"<'>`, description: 'a"b\\c' };
+    expect(fillHtml('<title>__SITE_NAME__</title><meta content="__SITE_DESCRIPTION__">', site))
+      .toBe('<title>Tom &amp; &quot;Jerry&quot;&lt;&#39;&gt;</title><meta content="a&quot;b\\c">');
+    expect(JSON.parse(fillJson('{"name":"__SITE_NAME__","description":"__SITE_DESCRIPTION__"}', site)))
+      .toEqual(site);
+  });
+
+  it("leave unknown placeholders alone", () => {
+    expect(fillHtml("__SITE_OTHER__", { name: "n", description: "d" })).toBe("__SITE_OTHER__");
   });
 });

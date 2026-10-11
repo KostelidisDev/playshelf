@@ -26,6 +26,9 @@ services:
       # The site's name (page title, app bar, installed app). Read when the
       # container starts: changing it needs a restart, not a rebuild.
       SITE_NAME: "${SITE_NAME:-PlayShelf}"
+      # The site's description (search results, link previews, installed
+      # app). Also read when the container starts.
+      SITE_DESCRIPTION: "${SITE_DESCRIPTION:-A hand-picked collection of YouTube videos, from any creator, grouped by game.}"
       # Downloads the missing thumbnails of the videos in videos.csv as WebP,
       # in the background, checking again every THUMBNAILS_SYNC_INTERVAL
       # seconds.

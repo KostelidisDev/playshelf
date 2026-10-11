@@ -11,7 +11,7 @@ the code.
 Node.js 26 (LTS) or later, as in `package.json` and the Docker build.
 
 ```sh
-npm run dev        # dev server (SITE_NAME=... to change the name)
+npm run dev        # dev server (SITE_NAME=..., SITE_DESCRIPTION=...)
 npm test           # Vitest, once
 npm run typecheck  # tsc -b
 npm run build      # typecheck + app build + service worker build into dist/
@@ -32,8 +32,8 @@ also check it in `npm run preview` or a built image.
 - `src/sw/`: the service worker, built separately (`vite.sw.config.ts`).
   `strategy.ts` holds its pure, tested parts.
 - `build/`: build-time helpers used by the Vite configs (CSP, shell file
-  list, version, site name), tested in `build/build.test.ts`.
-- `site.conf`: Apache config (headers, CSP, caching, site name, demo
+  list, version, site settings), tested in `build/build.test.ts`.
+- `site.conf`: Apache config (headers, CSP, caching, site settings, demo
   catalog rewrite). `docker-entrypoint.sh` and `sync-thumbnails.sh` run in
   the container.
 
@@ -47,10 +47,10 @@ are in `src/test/`.
   or styles, no `style=""` attributes, no `data:` URLs (`assetsInlineLimit:
   0`), and images only from `'self'` and `i.ytimg.com`. Any new external
   origin needs a CSP change, and a good reason.
-- **Site name**: the build is brand-neutral. `index.html` and the web
-  manifest carry `__SITE_NAME__`, filled in at serve time
-  (Apache in the container, `build/site-name.ts` locally), escaped by
-  `docker-entrypoint.sh`. Never bake a name into the build.
+- **Site settings**: the build is brand-neutral. `index.html` and the web
+  manifest carry `__SITE_NAME__` and `__SITE_DESCRIPTION__`, filled in at
+  serve time (Apache in the container, `build/site.ts` locally), escaped by
+  `docker-entrypoint.sh`. Never bake a name or description into the build.
 - **Catalog**: one CSV, `assets/api/videos.csv` (format in README.md). It
   must stay in sync with the manager's export
   (`manager/creator_manager/storage/site_csv.py`). Real data is never
