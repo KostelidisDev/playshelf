@@ -3,11 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <!-- __SITE_NAME__ and __SITE_DESCRIPTION__ are replaced as the page is
-       served: by Apache from the SITE_NAME and SITE_DESCRIPTION environment
-       variables (site.conf), or by build/site.ts under `vite dev` and
-       `vite preview`. The app reads the name from the application-name
-       meta tag. -->
   <title>__SITE_NAME__</title>
   <meta name="application-name" content="__SITE_NAME__">
   <meta name="description" content="__SITE_DESCRIPTION__">
@@ -15,9 +10,6 @@
   <meta name="publisher" content="__SITE_NAME__">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#1e1e1e">
-
-  <!-- Installable app. crossorigin="use-credentials": browsers fetch the
-       manifest without credentials otherwise, and basic auth would reject it. -->
   <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
   <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="/assets/icons/icon-192.png" type="image/png" sizes="192x192">
