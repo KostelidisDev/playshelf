@@ -54,8 +54,6 @@ services:
         target: /usr/local/apache2/htdocs/assets/thumbnails
     networks:
       - playshelf
-    ports:
-      - "8080:8080"
     logging: *default-logging
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
