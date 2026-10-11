@@ -51,6 +51,7 @@ npm test           # unit tests (Vitest)
 npm run typecheck
 npm run build      # type-check and build into dist/
 npm run preview    # serve dist/ with the production Content-Security-Policy
+npm run standalone -- <dir>   # after build: a standalone site (see below)
 ```
 
 `SITE_NAME=...` and `SITE_DESCRIPTION=...` before `npm run dev` (or
@@ -167,10 +168,49 @@ the thumbnails again.
 on one host, give each instance its own `.env` with a distinct
 `INSTANCE_NAME` and network subnets.
 
+## Standalone (shared hosting)
+
+The site also runs on a managed Apache or shared host, without Docker. Each
+GitHub release has one zip per site attached by the
+[Standalone release](.github/workflows/standalone-release.yml) workflow:
+
+| Zip                            | `SITE_NAME`      | `SITE_DESCRIPTION`                        |
+| ------------------------------ | ---------------- | ----------------------------------------- |
+| `playshelf-<version>.zip`      | `PlayShelf`      | The default.                              |
+| `kostelidis-dev-<version>.zip` | `Kostelidis.dev` | My Gaming Videos Organized By Game Titles |
+
+A zip holds a finished document root, with the site's name and description
+filled in and an `.htaccess` generated from `site.conf` (security headers,
+caching, compression and the demo catalog). It needs Apache 2.4 with
+`AllowOverride All`, the usual on shared hosts, and must be served from the
+domain's root.
+
+1. Upload the zip's contents to the document root, `.htaccess` included.
+2. Upload the catalog as `assets/api/videos.csv` (format in [Data](#data)).
+   Until then, the demo catalog is shown, if the host has `mod_rewrite`.
+3. Upload the thumbnails as `assets/thumbnails/<video_id>.webp`. Videos
+   without one show YouTube's thumbnail. `sync-thumbnails.sh` can make them
+   on any machine with `wget` and `cwebp`:
+
+   ```sh
+   mkdir -p thumbnails
+   THUMBNAILS_CSV=videos.csv THUMBNAILS_DIR=thumbnails THUMBNAILS_SYNC_INTERVAL=0 ./sync-thumbnails.sh
+   ```
+
+To update, upload a newer zip's contents over the old ones. The zips contain
+no catalog or thumbnails, so the uploaded ones stay.
+
+To build a standalone site locally, with any name and description:
+
+```sh
+npm run build
+SITE_NAME="Some Site" SITE_DESCRIPTION="..." npm run standalone -- standalone/some-site
+```
+
 ## Project layout
 
 ```
-build/                 Build-time helpers: CSP, service worker shell, version, site settings
+build/                 Build-time helpers: CSP, service worker shell, version, site settings, standalone build
 public/                Static files: icons, web manifest, demo catalog (plus a local, git-ignored one)
 src/components/        React components
 src/hooks/             React hooks
