@@ -1,0 +1,19 @@
+<!-- The site's icon while the Halloween easter egg is on: a skull with
+     glowing red eyes, on the same rounded square as icons/icon.svg. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3d0a12"/>
+      <stop offset="1" stop-color="#0a0a0a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path fill="#e8e1cf" d="M256 70c-96 0-160 66-160 154 0 52 24 92 60 116v54c0 14 10 24 24 24h22v-38h28v38h52v-38h28v38h22c14 0 24-10 24-24v-54c36-24 60-64 60-116 0-88-64-154-160-154z"/>
+  <ellipse cx="190" cy="236" rx="44" ry="50" fill="#0a0a0a"/>
+  <ellipse cx="322" cy="236" rx="44" ry="50" fill="#0a0a0a"/>
+  <circle cx="194" cy="244" r="12" fill="#ff1a1a"/>
+  <circle cx="318" cy="244" r="12" fill="#ff1a1a"/>
+  <path fill="#0a0a0a" d="M256 290l-24 44h48z"/>
+  <path fill="#9a0a1e" d="M150 120c20-30 60-46 106-46 20 0 30 10 22 22-6 8 0 20-6 34-4 10-12 8-12 0 0-10-8-14-18-12-14 2-22 16-36 14-10-2-16 12-26 14-10 2-22-6-30-26z"/>
+  <path fill="#9a0a1e" d="M262 124c-2 14 4 24 2 40-1 8 8 8 8 0-1-16 2-26-2-40z"/>
+</svg>

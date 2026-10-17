@@ -1,0 +1,27 @@
+<!-- The hockey mask, one of the Halloween masks: scuffed white, rows of
+     breathing holes, red chevrons, and somebody else's blood across it. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260">
+  <defs>
+    <radialGradient id="shell" cx="45%" cy="38%" r="65%">
+      <stop offset="0%" stop-color="#f6f3ea"/>
+      <stop offset="65%" stop-color="#cfc8b8"/>
+      <stop offset="100%" stop-color="#4c463c"/>
+    </radialGradient>
+  </defs>
+  <path fill="none" stroke="#1a1a1a" stroke-width="6" d="M24 90H4M24 170H4M176 90h20M176 170h20M100 10V0"/>
+  <path fill="url(#shell)" d="M100 10c50 0 80 34 80 90 0 70-30 150-80 150S20 170 20 100c0-56 30-90 80-90z"/>
+  <path fill="#b3122a" d="M100 28l14 22H86zM56 150l18-8-4 22zM144 150l-18-8 4 22z"/>
+  <path fill="#0a0806" d="M50 98c10-12 32-14 42-4l-4 18c-12 6-30 4-40-4zM150 98c-10-12-32-14-42-4l4 18c12 6 30 4 40-4z"/>
+  <g fill="#1a1612">
+    <circle cx="80" cy="64" r="3.5"/><circle cx="100" cy="66" r="3.5"/><circle cx="120" cy="64" r="3.5"/>
+    <circle cx="90" cy="140" r="3.5"/><circle cx="110" cy="140" r="3.5"/>
+    <circle cx="80" cy="168" r="3.5"/><circle cx="100" cy="168" r="3.5"/><circle cx="120" cy="168" r="3.5"/>
+    <circle cx="86" cy="192" r="3.5"/><circle cx="100" cy="192" r="3.5"/><circle cx="114" cy="192" r="3.5"/>
+    <circle cx="92" cy="214" r="3.5"/><circle cx="108" cy="214" r="3.5"/>
+    <circle cx="48" cy="182" r="3"/><circle cx="58" cy="198" r="3"/><circle cx="152" cy="182" r="3"/><circle cx="142" cy="198" r="3"/>
+  </g>
+  <path fill="#7a0012" d="M120 40c14-6 30 2 32 16 2 10-6 14-4 24 2 8 10 20 6 34-1 6-7 4-6-2 2-12-6-18-8-28-2-8 4-14 0-22-4-6-14-4-20-10z"/>
+  <circle cx="160" cy="44" r="4" fill="#7a0012"/><circle cx="168" cy="58" r="2.5" fill="#7a0012"/><circle cx="112" cy="32" r="3" fill="#7a0012"/>
+  <path fill="#7a0012" d="M60 206c6-4 14-2 16 4 2 8-4 10-2 18 1 6-4 6-5 0-1-8 2-12-3-16-2-2-6-2-6-6z"/>
+  <path fill="none" stroke="#7d756a" stroke-width="1.2" stroke-linecap="round" d="M40 130l24-16M44 140l18-10M150 222l14-22M70 40l-12 14"/>
+</svg>

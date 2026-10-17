@@ -4,7 +4,7 @@ import { useInstallPrompt } from "../hooks/useInstallPrompt.ts";
 import { isPlainClick } from "../lib/events.ts";
 import { siteName } from "../ui/brand.ts";
 import { buildVersion } from "../ui/version.ts";
-import { BackIcon, GamepadIcon, InstallIcon } from "./Icons.tsx";
+import { BackIcon, GamepadIcon, InstallIcon, SkullIcon } from "./Icons.tsx";
 
 export const BRAND = siteName();
 
@@ -35,6 +35,7 @@ export function AppBar({ view, status, onBrandClick, children }: Props) {
       <div className="appbar-row">
         <a className="brand" href="./" aria-label={view === "home" ? BRAND : "Back to all games"} onClick={handleBrandClick}>
           <GamepadIcon />
+          <SkullIcon />
           <BackIcon />
           <span className="brand-text">
             <span>{BRAND}</span>

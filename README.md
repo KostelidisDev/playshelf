@@ -10,6 +10,10 @@ description are set at runtime.
   each game's videos, newest first.
 - Works offline once visited, and installs as an app (PWA).
 - No backend: the whole catalog is one CSV file.
+- On October 31 the site dresses up for Halloween, jump scare and shriek
+  included; typing `boo` anywhere outside a text field toggles it on any
+  other day. Visitors who ask their system for reduced motion get only the
+  colours, with no animation, scare or sound.
 
 ## Data
 
@@ -212,11 +216,11 @@ SITE_NAME="Some Site" SITE_DESCRIPTION="..." npm run standalone -- standalone/so
 ```
 build/                 Build-time helpers: CSP, service worker shell, version, site settings, standalone build
 public/                Static files: icons, web manifest, demo catalog (plus a local, git-ignored one)
-src/components/        React components
+src/components/        React components (and, in halloween/, the Halloween artwork)
 src/hooks/             React hooks
-src/lib/               Pure logic: CSV parsing, routing, pagination, text
+src/lib/               Pure logic: CSV parsing, routing, pagination, text, Halloween date and spell
 src/sw/                Service worker (offline support)
-src/ui/                Browser helpers: brand, version, tint, SW registration
+src/ui/                Browser helpers: brand, version, tint, SW registration, Halloween shriek
 site.conf              Apache config: headers, caching, site settings, demo catalog
 CLAUDE.md              Notes for Claude Code: commands, invariants, conventions
 docker-entrypoint.sh   Escapes the site settings and starts the thumbnail sync
@@ -235,4 +239,6 @@ bugs before releasing it.
 
 The interface icons in `src/components/Icons.tsx` come from Google's
 [Material Icons](https://github.com/google/material-design-icons), under the
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), except the
+Halloween skull, which, like the artwork in `src/components/halloween/`, was
+made for this project and is under the MIT license.
