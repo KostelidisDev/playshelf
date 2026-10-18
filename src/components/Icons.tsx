@@ -12,6 +12,14 @@ export const GamepadIcon = () => icon(
   "icon brand-icon",
 );
 
+/* Not a Material icon: the logo while the Halloween easter egg is on
+   (style.css swaps it in). Its eyes and nose are holes, cut by the
+   even-odd fill rule. */
+export const SkullIcon = () => icon(
+  "M12 2C7.6 2 4 5.3 4 9.6c0 2.5 1.2 4.6 3 5.9V18c0 .6.4 1 1 1h1.5v-2H11v2h2v-2h1.5v2H16c.6 0 1-.4 1-1v-2.5c1.8-1.3 3-3.4 3-5.9C20 5.3 16.4 2 12 2zM8.8 8.2a2 2 0 100 4 2 2 0 000-4zM15.2 8.2a2 2 0 100 4 2 2 0 000-4zM12 12.6l-1.2 2.2h2.4z",
+  "icon brand-icon skull-icon",
+);
+
 export const BackIcon = () => icon("M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z", "icon back-icon");
 
 export const InstallIcon = () => icon("M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z");

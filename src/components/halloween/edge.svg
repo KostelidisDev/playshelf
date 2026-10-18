@@ -1,0 +1,6 @@
+<!-- The blood along the top of the screen in the Halloween easter egg,
+     repeated across it: a soaked edge with heavy beads hanging off it. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40">
+  <path fill="#7a0012" d="M0 0h120v10c-6 0-8 4-10 10-2 8-8 8-9 0-1-6-4-8-9-8s-6 4-8 14c-2 10-9 10-10 0-1-8-4-12-10-12s-8 3-10 8c-2 6-8 6-9 0-1-5-4-8-9-8s-8 4-9 12c-1 7-8 7-8 0 0-6-4-10-9-10s-8 2-10 6V0z"/>
+  <path fill="#4e000b" d="M0 0h120v5c-10 2-20 4-30 2s-20-4-30-2-20 4-30 2S10 3 0 5z"/>
+</svg>

@@ -1,0 +1,26 @@
+<!-- The sack, one of the Halloween masks: burlap tied off at the neck, one
+     eye a ragged hole and the other sewn shut, a grin stitched on, and
+     old stains soaking through. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260">
+  <defs>
+    <radialGradient id="burlap" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#a4875c"/>
+      <stop offset="60%" stop-color="#7a6040"/>
+      <stop offset="100%" stop-color="#2a1e12"/>
+    </radialGradient>
+    <pattern id="weave" width="6" height="6" patternUnits="userSpaceOnUse">
+      <path d="M0 3h6M3 0v6" stroke="#3b2c1a" stroke-width="0.8" opacity="0.35"/>
+    </pattern>
+  </defs>
+  <path fill="url(#burlap)" d="M100 6c-40 0-66 12-74 52-8 40-2 92 6 124 4 18 18 30 30 36l76 0c12-6 26-18 30-36 8-32 14-84 6-124C166 18 140 6 100 6z"/>
+  <path fill="url(#weave)" d="M100 6c-40 0-66 12-74 52-8 40-2 92 6 124 4 18 18 30 30 36l76 0c12-6 26-18 30-36 8-32 14-84 6-124C166 18 140 6 100 6z"/>
+  <ellipse cx="148" cy="60" rx="20" ry="14" fill="#4a0a0a" opacity="0.55"/>
+  <ellipse cx="62" cy="190" rx="26" ry="16" fill="#4a0a0a" opacity="0.5"/>
+  <path fill="#5a3f22" d="M52 214c30 10 66 10 96 0l6 20c-34 12-74 12-108 0z"/>
+  <path fill="none" stroke="#2e2010" stroke-width="2" d="M60 218l-4 14M74 221l-3 14M88 222l-2 14M102 223v14M116 222l2 14M130 221l3 14M144 218l4 14"/>
+  <path fill="#060403" d="M54 92c8-10 26-12 36-2 6 8 4 22-6 26-12 6-30 2-34-8-2-6 0-12 4-16z"/>
+  <path fill="none" stroke="#1c120a" stroke-width="5" stroke-linecap="round" d="M118 84l26 26M144 84l-26 26"/>
+  <path fill="none" stroke="#1c120a" stroke-width="3" stroke-linecap="round" d="M46 160c30 22 78 22 108 0"/>
+  <path fill="none" stroke="#1c120a" stroke-width="2.5" stroke-linecap="round" d="M56 160l-2 14M70 168l-1 14M86 172v14M100 174v14M114 172v14M130 168l1 14M144 160l2 14"/>
+  <path fill="#6a0a10" d="M84 112c-2 10 2 18 0 28-1 5 4 5 4 0-1-10 1-18-1-28z"/>
+</svg>

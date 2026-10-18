@@ -1,0 +1,12 @@
+<!-- A bloody handprint, dragged down the screen in the Halloween easter
+     egg: the print at the top, and the smear the fingers leave below. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 240">
+  <g fill="#7a0012">
+    <path d="M60 52c18 0 30 10 32 26 2 14-4 24-8 32-4 10-10 14-24 14s-22-6-26-16c-4-8-8-18-6-30 2-16 14-26 32-26z"/>
+    <path d="M30 60c-6-14-14-26-18-36-2-6 4-10 8-6 6 8 12 22 20 34zM46 48c-2-16-4-30-4-42 0-6 8-6 8 0l4 42zM64 46l4-42c0-6 8-6 8 0l-2 44zM80 54c4-14 10-26 14-36 2-6 10-4 8 2-4 12-8 24-14 38zM90 86c8-6 16-12 22-16 4-4 10 2 6 6-6 6-14 12-22 18z"/>
+  </g>
+  <g fill="#7a0012" opacity="0.75">
+    <path d="M40 120l-2 100c0 6 6 6 6 0l4-100zM56 124l-1 116h6l1-116zM72 122l3 90c0 6 6 6 6 0l-3-92z"/>
+    <path d="M28 70l-4 60c0 4 4 4 4 0l6-58zM96 90l2 50c0 4 4 4 4 0l-2-52z" opacity="0.7"/>
+  </g>
+</svg>

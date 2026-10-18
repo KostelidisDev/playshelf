@@ -1,0 +1,34 @@
+<!-- The ghoul, one of the Halloween masks (Halloween.tsx): long, pale and
+     cracked, with hollow eyes that bleed and a mouth stretched open too
+     far. The artwork here is shown as <img>s, under the site's CSP, so it's
+     styled with attributes only: a <style> element would be blocked. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260">
+  <defs>
+    <radialGradient id="skin" cx="50%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#e9e3d2"/>
+      <stop offset="55%" stop-color="#a9a08c"/>
+      <stop offset="100%" stop-color="#2a2620"/>
+    </radialGradient>
+    <radialGradient id="socket" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#000"/>
+      <stop offset="70%" stop-color="#0b0806"/>
+      <stop offset="100%" stop-color="#3a3127"/>
+    </radialGradient>
+    <filter id="glow" x="-200%" y="-200%" width="500%" height="500%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path fill="url(#skin)" d="M100 8C152 8 182 58 180 118c-2 62-28 132-80 136C48 250 22 180 20 118 18 58 48 8 100 8z"/>
+  <path fill="none" stroke="#2a1d14" stroke-width="1.5" stroke-linecap="round" d="M100 10l-6 22 9 14-7 18M150 34l-14 16 4 12M46 40l12 18-6 10M168 150l-16 6-4 14"/>
+  <ellipse fill="url(#socket)" cx="66" cy="104" rx="24" ry="31" transform="rotate(-14 66 104)"/>
+  <ellipse fill="url(#socket)" cx="134" cy="104" rx="24" ry="31" transform="rotate(14 134 104)"/>
+  <g fill="#ff1a1a" filter="url(#glow)">
+    <circle cx="70" cy="108" r="4"/>
+    <circle cx="130" cy="108" r="4"/>
+  </g>
+  <path fill="#7a0012" d="M58 132c-2 14 2 22-1 36-1 6 5 6 5 0-1-12 2-22 0-36zM142 132c2 18-3 30 0 48 1 6 6 5 5-1-2-16 2-30-1-47z"/>
+  <path fill="url(#socket)" d="M95 140l-5 14h7zM105 140l5 14h-7z"/>
+  <path fill="#050202" d="M64 172c0-12 72-12 72 0l-8 60c-6 20-50 20-56 0z"/>
+  <path fill="#c9bfa4" d="M68 172l5 11 5-12 5 13 5-13 5 14 5-14 4 14 5-14 5 13 5-13 5 12 5-11zM76 230l4-10 5 9 5-10 5 11 5-11 5 11 5-11 5 10 4-9 3 8c-6 12-44 12-51 2z"/>
+</svg>

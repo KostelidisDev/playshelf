@@ -614,11 +614,322 @@ button, input { font: inherit; color: inherit; }
   .card-body { background: var(--surface); }
 }
 
+/* The Halloween easter egg (components/Halloween.tsx): a blood-red accent,
+   a skull for a logo, a vignette that slowly breathes, a burst of blood
+   (soaking the top edge, dripping, splatters and handprints) with a
+   "Happy Halloween", red-eyed bats crossing at different heights and
+   speeds, masks lurking behind them, and the jump scare. Nothing here is
+   in the way of a click. */
+[data-halloween] {
+  --primary: #d0102c;
+  --on-primary: #f4ece6;
+}
+.skull-icon { display: none; fill-rule: evenodd; color: #e8e1cf; }
+[data-halloween] .brand-icon { display: none; }
+[data-halloween] .skull-icon { display: block; }
+[data-halloween] .view-game .skull-icon { display: none; }
+.haunt {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* The darkness closes in and eases off, slowly. It's a layer of its own,
+   so the bats and the blood don't fade with it, and it never jumps: a
+   sudden change of brightness over the whole page reads as a glitch. */
+.haunt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 45%, rgb(20 0 0 / 0.5) 80%, rgb(0 0 0 / 0.7) 100%);
+  will-change: opacity;
+  animation: haunt-breathe 7s ease-in-out infinite alternate;
+}
+@keyframes haunt-breathe {
+  from { opacity: 0.8; }
+  to   { opacity: 1; }
+}
+
+/* Only transform and opacity are animated below, and no filter sits on
+   anything that moves, so the browser can run all of it on the compositor
+   instead of redoing layout and filters on every frame. Glows are painted
+   once, as radial-gradient backgrounds, or drawn into the artwork. */
+
+/* The blood is a single burst when the easter egg turns on: it soaks the
+   top edge, drips, splatters and smears, and has dried away by the end of
+   --bleed (BLOOD_MS in Halloween.tsx, which then takes it off the page).
+   Every part runs once, starting a little after the last, and ends faded
+   out. */
+.blood { --bleed: 5s; }
+
+/* Each drip is a run of blood that slides down from above the top edge,
+   so its rounded tip never stretches, and a drop that swells at the tip
+   and then falls. Both halves share the drip's timing and the same easing
+   while they move together, so the drop never parts from the tip, and the
+   run slows to a stop rather than braking hard. */
+.drip {
+  --wait: 0s;
+  position: absolute;
+  top: 0;
+  width: 6px;
+}
+.drip::before,
+.drip::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  will-change: transform, opacity;
+  animation-duration: calc(var(--bleed) - var(--wait));
+  animation-delay: var(--wait);
+  animation-fill-mode: both;
+}
+.drip::before {
+  left: 0;
+  width: 100%;
+  height: 20vh;
+  border-radius: 0 0 999px 999px;
+  background: linear-gradient(#5c0010, #a3001a);
+  animation-name: drip-run;
+}
+.drip::after {
+  left: -2px;
+  width: calc(100% + 4px);
+  height: 12px;
+  margin-top: -12px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: #a3001a;
+  animation-name: drip-fall;
+}
+.drip:nth-child(1)  { left: 3%; }
+.drip:nth-child(2)  { left: 11%; width: 4px; --wait: 0.5s; }
+.drip:nth-child(3)  { left: 19%; width: 8px; --wait: 0.2s; }
+.drip:nth-child(4)  { left: 27%; --wait: 0.8s; }
+.drip:nth-child(5)  { left: 36%; width: 5px; --wait: 0.3s; }
+.drip:nth-child(6)  { left: 44%; width: 9px; --wait: 0.1s; }
+.drip:nth-child(7)  { left: 52%; width: 4px; --wait: 0.7s; }
+.drip:nth-child(8)  { left: 61%; --wait: 0.4s; }
+.drip:nth-child(9)  { left: 69%; width: 7px; --wait: 0.9s; }
+.drip:nth-child(10) { left: 78%; width: 4px; --wait: 0.2s; }
+.drip:nth-child(11) { left: 86%; width: 8px; --wait: 0.6s; }
+.drip:nth-child(12) { left: 94%; width: 5px; --wait: 0.35s; }
+@keyframes drip-run {
+  0%   { transform: translateY(-100%); opacity: 1; animation-timing-function: ease-out; }
+  50%  { transform: translateY(0); opacity: 1; }
+  75%  { transform: translateY(0); opacity: 1; animation-timing-function: ease-in; }
+  100% { transform: translateY(0); opacity: 0; }
+}
+@keyframes drip-fall {
+  0%   { transform: translateY(0) scale(0.6); opacity: 1; animation-timing-function: ease-out; }
+  50%  { transform: translateY(20vh) scale(0.6); opacity: 1; animation-timing-function: ease-in-out; }
+  58%  { transform: translateY(20vh) scale(1); opacity: 1; animation-timing-function: ease-in; }
+  75%  { transform: translateY(110vh) scale(1); opacity: 1; }
+  75.1%, 100% { transform: translateY(110vh) scale(1); opacity: 0; }
+}
+
+/* The blood soaking the top edge, which the drips run down from: it
+   pours in first and dries away last. */
+.blood-edge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: url("./components/halloween/edge.svg") repeat-x top left / 84px 28px;
+  will-change: transform, opacity;
+  animation: edge-soak var(--bleed) both;
+}
+@keyframes edge-soak {
+  0%   { transform: translateY(-100%); opacity: 1; animation-timing-function: ease-out; }
+  8%   { transform: translateY(0); opacity: 1; }
+  80%  { transform: translateY(0); opacity: 1; animation-timing-function: ease-in; }
+  100% { transform: translateY(0); opacity: 0; }
+}
+
+/* Splatters land on the screen with a smack, one after another, and
+   fade; the handprints press against it and are dragged down, leaving a
+   smear. Each has its own spot, size and moment (--at). */
+.splatter,
+.hand {
+  --at: 0s;
+  position: absolute;
+  opacity: 0;
+  width: var(--size, 22vmin);
+  rotate: var(--turn, 0deg);
+  will-change: transform, opacity;
+  animation-duration: calc(var(--bleed) - var(--at));
+  animation-delay: var(--at);
+  animation-fill-mode: both;
+}
+.splatter { animation-name: splat; }
+.splatter:nth-child(1) { left: -4vmin; top: 14vh; --turn: 20deg; --at: 0.1s; }
+.splatter:nth-child(2) { right: 4vw; top: 52vh; --size: 30vmin; --turn: 140deg; --at: 0.5s; }
+.splatter:nth-child(3) { left: 22vw; bottom: 2vh; --size: 18vmin; --turn: 260deg; --at: 1s; }
+.splatter:nth-child(4) { right: 26vw; top: 8vh; --size: 16vmin; --turn: 80deg; --at: 1.4s; }
+@keyframes splat {
+  0%   { transform: scale(1.4); opacity: 0; animation-timing-function: ease-out; }
+  4%   { transform: scale(0.95); opacity: 0.85; }
+  8%   { transform: scale(1); opacity: 0.85; }
+  70%  { transform: scale(1); opacity: 0.75; animation-timing-function: ease-in; }
+  100% { transform: scale(1); opacity: 0; }
+}
+.hand { --size: 13vmin; animation-name: hand-drag; }
+.hand:nth-child(5) { left: 8vw; top: 34vh; --turn: -8deg; --at: 0.8s; }
+.hand:nth-child(6) { right: 12vw; top: 12vh; --size: 11vmin; --turn: 12deg; --at: 1.8s; }
+@keyframes hand-drag {
+  0%   { transform: translateY(0) scale(1.06); opacity: 0; }
+  5%   { transform: translateY(0) scale(1); opacity: 0.8; }
+  25%  { transform: translateY(0) scale(1); opacity: 0.8; animation-timing-function: ease-in-out; }
+  80%  { transform: translateY(12vh) scale(1); opacity: 0.6; animation-timing-function: ease-in; }
+  100% { transform: translateY(14vh) scale(1); opacity: 0; }
+}
+
+/* "Happy Halloween", across the middle of the screen once the jump scare
+   is over: it rises out of the dark with a shudder, and fades with the
+   blood. There are no web fonts to load, so it asks for a spooky face the
+   system may have and falls back to a heavy serif. */
+.greeting {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0 var(--pad-right) 0 var(--pad-left);
+  color: #c4001f;
+  font: 700 clamp(2.4rem, 11vw, 7.5rem)/1 Chiller, "Creepster", Papyrus, Georgia, "Times New Roman", serif;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-shadow: 0 0 12px rgb(0 0 0 / 0.9), 0 4px 0 #4e000b, 0 0 40px rgb(208 16 44 / 0.6);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: greet calc(var(--bleed) - 1.5s) 1.5s both;
+}
+@keyframes greet {
+  0%   { transform: scale(0.85) translateY(4vh); opacity: 0; animation-timing-function: ease-out; }
+  18%  { transform: scale(1.04) translateY(0); opacity: 1; }
+  21%  { transform: scale(1) translate(-4px, 2px) rotate(-1deg); }
+  24%  { transform: scale(1) translate(4px, -2px) rotate(1deg); }
+  27%  { transform: scale(1) translate(0, 0) rotate(0deg); }
+  75%  { transform: scale(1); opacity: 1; animation-timing-function: ease-in; }
+  100% { transform: scale(1.08); opacity: 0; }
+}
+
+/* The masks, looming faintly behind the bats, one at a time: each fades
+   in at its own spot and back out, and the next takes its turn. */
+.lurker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 58vh;
+  padding: 3vh;
+  opacity: 0;
+  background: radial-gradient(closest-side, rgb(208 16 44 / 0.45), transparent);
+  will-change: transform, opacity;
+  animation: lurk 36s ease-in-out infinite;
+}
+.lurker:nth-child(1) { --x: 62vw; --y: 26vh; }
+.lurker:nth-child(2) { --x: -4vw; --y: 6vh; animation-delay: -27s; }
+.lurker:nth-child(3) { --x: 30vw; --y: 44vh; animation-delay: -18s; }
+.lurker:nth-child(4) { --x: 70vw; --y: -2vh; animation-delay: -9s; }
+@keyframes lurk {
+  0%   { transform: translate(var(--x), var(--y)) scale(0.9); opacity: 0; }
+  12%  { transform: translate(var(--x), var(--y)) scale(1); opacity: 0.15; }
+  24%, 100% { transform: translate(var(--x), var(--y)) scale(1.06); opacity: 0; }
+}
+
+/* The bats' red rim is a stroke on the artwork rather than a drop-shadow,
+   which would be redrawn on every beat of their wings. */
+.bat {
+  position: absolute;
+  left: -60px;
+  width: 48px;
+  fill: #050505;
+  stroke: #8a0014;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  will-change: transform;
+  animation: bat-fly 14s linear infinite, bat-flap 0.25s ease-in-out infinite alternate;
+}
+.bat-eye { fill: #ff1a1a; stroke: none; }
+.bat:nth-child(1) { top: 18%; }
+.bat:nth-child(2) { top: 42%; width: 32px; animation-duration: 19s, 0.2s; animation-delay: -6s, 0s; }
+.bat:nth-child(3) { top: 65%; width: 40px; animation-duration: 16s, 0.3s; animation-delay: -11s, 0s; }
+.bat:nth-child(4) { top: 30%; width: 28px; animation-duration: 23s, 0.22s; animation-delay: -3s, 0s; }
+@keyframes bat-fly {
+  0%   { translate: 0 0; }
+  25%  { translate: 25vw -4vh; }
+  50%  { translate: 50vw 3vh; }
+  75%  { translate: 75vw -2vh; }
+  100% { translate: calc(100vw + 120px) 0; }
+}
+@keyframes bat-flap {
+  from { scale: 1 1; }
+  to   { scale: 1 0.55; }
+}
+
+/* The jump scare: one red flash, then the face lunges out of the dark,
+   shaking, and fades back into it. A single flash keeps it well under the
+   three-flashes-a-second limit for photosensitive visitors. Its length
+   matches SCARE_MS. The flash is a layer of its own that fades, rather
+   than an animated background colour that repaints the whole screen. */
+.scare {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  background: #000;
+  will-change: opacity;
+  animation: scare-fade 1.4s ease-out forwards;
+}
+.scare::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #8a0014;
+  opacity: 0;
+  will-change: opacity;
+  animation: scare-flash 1.4s ease-out forwards;
+}
+.scare-face {
+  position: relative;
+  height: min(100vh, 150vw);
+  padding: 4vh;
+  background: radial-gradient(closest-side, rgb(208 16 44 / 0.5), transparent);
+  will-change: transform, opacity;
+  animation: scare-lunge 1.4s cubic-bezier(0.2, 0.9, 0.3, 1) forwards, scare-shake 0.09s linear 8;
+}
+@keyframes scare-fade {
+  0%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes scare-flash {
+  0%   { opacity: 1; }
+  6%, 100% { opacity: 0; }
+}
+@keyframes scare-lunge {
+  0%   { scale: 0.15; opacity: 0; }
+  7%   { scale: 1.25; opacity: 1; }
+  14%  { scale: 1.08; }
+  75%  { scale: 1.15; opacity: 1; }
+  100% { scale: 1.6; opacity: 0; }
+}
+@keyframes scare-shake {
+  0%   { translate: 0 0; rotate: 0deg; }
+  25%  { translate: -12px 6px; rotate: -2deg; }
+  50%  { translate: 10px -8px; rotate: 1.5deg; }
+  75%  { translate: -6px -4px; rotate: -1deg; }
+  100% { translate: 0 0; rotate: 0deg; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation: none !important;
     transition: none !important;
   }
+  .drips, .stains, .lurkers, .bats, .scare { display: none; }
 }
 
 /* No install button once the site runs as an installed app. */
