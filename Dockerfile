@@ -2,15 +2,12 @@
 
 # docker build -t ghcr.io/kostelidisdev/playshelf:latest .
 
-ARG HTTPD_TAG=2.4.69-alpine3.24
-ARG NODE_TAG=26.11.1-alpine3.24
-
 # Build stage: type-checks, tests and builds the app into dist/. It runs on
 # the build host's own platform: the output is static files, the same for
 # every target architecture, so nothing needs emulating.
 # The build version (v<year>.<month>.<day>-build<HHMMSS>) comes from the
 # build host's clock in BUILD_TZ, unless BUILD_VERSION sets it.
-FROM --platform=$BUILDPLATFORM node:${NODE_TAG} AS build
+FROM --platform=$BUILDPLATFORM node:26.11.1-alpine3.24 AS build
 ARG BUILD_TZ=Europe/Athens
 ARG BUILD_VERSION=""
 RUN apk add --no-cache tzdata
@@ -24,7 +21,7 @@ RUN APP_VERSION="${BUILD_VERSION:-"$(TZ="$BUILD_TZ" date +'v%Y.%m.%d-build%H%M%S
     && npm run build \
     && echo "Built version $APP_VERSION"
 
-FROM httpd:${HTTPD_TAG}
+FROM httpd:2.4.69-alpine3.24
 
 # cwebp, used by sync-thumbnails.sh.
 RUN apk add --no-cache libwebp-tools
