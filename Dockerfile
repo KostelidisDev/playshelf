@@ -7,7 +7,7 @@
 # every target architecture, so nothing needs emulating.
 # The build version (v<year>.<month>.<day>-build<HHMMSS>) comes from the
 # build host's clock in BUILD_TZ, unless BUILD_VERSION sets it.
-FROM --platform=$BUILDPLATFORM node:26.11.1-alpine3.24 AS build
+FROM --platform=$BUILDPLATFORM node:26.13.0-alpine3.24 AS build
 ARG BUILD_TZ=Europe/Athens
 ARG BUILD_VERSION=""
 RUN apk add --no-cache tzdata
