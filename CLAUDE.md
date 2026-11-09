@@ -29,6 +29,9 @@ also check it in `npm run preview` or a built image.
 - `src/lib/`: pure logic (CSV parsing, routes, pagination, text, videos). No
   DOM, no network. Keep it that way, so it stays unit-testable.
 - `src/components/`, `src/hooks/`: React UI.
+- `studio/`, `src/studio/`: the catalog editor at `/studio/`, a second page
+  of the same build (its own HTML entry, no service worker). Its rules are
+  in `src/lib/studio.ts`, which follows the desktop studio's.
 - `src/ui/`: browser helpers (brand, tint, version, SW registration).
 - `src/sw/`: the service worker, built separately (`vite.sw.config.ts`).
   `strategy.ts` holds its pure, tested parts.
@@ -57,7 +60,8 @@ are in `src/test/`.
   only the standalone sites (`build/standalone.ts`) fill them in, after it.
 - **Catalog**: one CSV, `assets/api/videos.csv` (format in README.md). It
   must stay in sync with the manager's export
-  (`manager/creator_manager/storage/site_csv.py`). Real data is never
+  (`manager/creator_manager/storage/site_csv.py`), and so must the editor's
+  writer (`src/lib/studio.ts`). Real data is never
   committed (`public/assets/api/` and `public/assets/thumbnails/` are
   git-ignored); `public/assets/demo/videos.csv` is the demo that's served
   when the catalog volume has none.

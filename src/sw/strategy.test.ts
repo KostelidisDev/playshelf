@@ -15,6 +15,12 @@ describe("strategyFor", () => {
     expect(strategyFor(get("/assets/api/videos.csv"), origin)).toEqual({ kind: "network-first" });
   });
 
+  it("leaves the catalog editor to the network, rather than the app shell", () => {
+    expect(strategyFor(get("/studio/", "navigate"), origin)).toEqual({ kind: "ignore" });
+    expect(strategyFor(get("/studio/?x=1", "navigate"), origin)).toEqual({ kind: "ignore" });
+    expect(strategyFor(get("/studio/assets/app/index-abc.js"), origin)).toEqual({ kind: "ignore" });
+  });
+
   it("ignores other origins and non-GET requests", () => {
     expect(strategyFor({ method: "GET", mode: "no-cors", url: "https://i.ytimg.com/vi/x/hqdefault.jpg" }, origin)).toEqual({ kind: "ignore" });
     expect(strategyFor({ ...get("/"), method: "POST" }, origin)).toEqual({ kind: "ignore" });

@@ -1,14 +1,27 @@
-.idea
+# Dependencies and tool caches
+node_modules
 .npm-cache
+
+# Build output: dist/ (npm run build), standalone sites (npm run standalone),
+# and the release zips the standalone workflow makes
 dist
 standalone
-node_modules
+release
+
+# Local environment and secrets (.env.example is committed)
 .env
-# Real data, for local development only: the container mounts its own
+
+# Real catalog and thumbnails, for local development only. The directories
+# are ignored whole; their .gitkeep placeholders stay tracked, so a fresh
+# clone has the directories. The container mounts its own copies instead
 # (docker-compose.yml).
-public/assets/api/*.csv
-public/assets/thumbnails/*.webp
+public/assets/api/*
+!public/assets/api/.gitkeep
+public/assets/thumbnails/*
+!public/assets/thumbnails/.gitkeep
+
+# Editor, OS and tool files
+.idea
+.DS_Store
 .claude
 .mcp.json
-
-.DS_Store

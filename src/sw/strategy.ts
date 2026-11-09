@@ -11,6 +11,9 @@ export type Strategy =
 export function strategyFor(request: { method: string; mode: string; url: string }, origin: string): Strategy {
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== origin) return { kind: "ignore" };
+  // The catalog editor (/studio/) is its own page, and a tool to use online:
+  // the network answers it, rather than the app shell.
+  if (url.pathname.includes("/studio/")) return { kind: "ignore" };
   // Every page is the one app shell, whatever its query string.
   if (request.mode === "navigate") return { kind: "navigate" };
   // A video's thumbnail never changes.

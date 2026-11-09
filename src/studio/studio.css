@@ -1,0 +1,256 @@
+/* The catalog editor (studio/index.html). Shares the app's colours, buttons
+   and visually-hidden helper from style.css; the layout is its own. Mobile
+   first: rows stack, and the form turns into two columns from 720px. */
+
+.studio {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.studio-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px var(--pad-right) 12px var(--pad-left);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.studio-title h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.studio-status {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.studio-dirty {
+  color: var(--primary);
+}
+
+.studio-main {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 16px var(--pad-right) 32px var(--pad-left);
+}
+
+.studio-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.studio .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.studio .btn-secondary {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.studio .btn-small {
+  min-height: 32px;
+  padding: 0 14px;
+  font-size: 0.9rem;
+}
+
+/* The file picker: a label styled as a button, with the input inside it. */
+.file-button {
+  position: relative;
+  cursor: pointer;
+}
+
+.file-button:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.studio-notice {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.studio-notice[role="alert"] {
+  border-color: #ff8a80;
+}
+
+.studio-skipped summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.studio-skipped p,
+.studio-skipped ul {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+}
+
+.studio-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.studio-search {
+  flex: 1 1 240px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+.field-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.field input,
+.studio-search input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.field input:focus,
+.studio-search input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 0;
+}
+
+.field input[aria-invalid="true"] {
+  border-color: #ff8a80;
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.field-error {
+  margin: 0;
+  color: #ff8a80;
+  font-size: 0.85rem;
+}
+
+.record-form {
+  display: grid;
+  gap: 16px;
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.record-form-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+.records {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.records > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.record {
+  display: grid;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface);
+}
+
+.record-title {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.studio-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.studio-empty {
+  margin: 32px 0;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.welcome {
+  max-width: 36rem;
+  margin: 48px auto;
+  text-align: center;
+}
+
+.welcome p {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+}
+
+.welcome .studio-actions {
+  justify-content: center;
+}
+
+@media (min-width: 720px) {
+  .record-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .record {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+}

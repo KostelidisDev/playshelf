@@ -1,13 +1,15 @@
 /// <reference types="vitest/config" />
 import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 import { sitePlugin } from "./build/site.ts";
 import { sitePolicy } from "./build/csp.ts";
 import { APP_ASSETS_DIR } from "./build/shell.ts";
 import { appVersion } from "./build/version.ts";
 
-// The app (index.html and everything it loads). The service worker is a
-// second build, run after this one: vite.sw.config.ts.
+// The app (index.html and everything it loads), and the catalog editor at
+// /studio/ (studio/index.html), which shares its code and assets. The
+// service worker is a second build, run after this one: vite.sw.config.ts.
 export default defineConfig({
   base: "./",
   plugins: [react(), sitePlugin()],
@@ -22,6 +24,12 @@ export default defineConfig({
     // Every supported browser has native modulepreload; the polyfill would
     // only add a script.
     modulePreload: { polyfill: false },
+    rollupOptions: {
+      input: {
+        index: fileURLToPath(new URL("./index.html", import.meta.url)),
+        studio: fileURLToPath(new URL("./studio/index.html", import.meta.url)),
+      },
+    },
   },
   // `npm run preview` serves the build under the production CSP. (`vite dev`
   // can't: its module loading needs inline code.)

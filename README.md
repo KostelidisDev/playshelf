@@ -44,6 +44,24 @@ to YouTube's (`i.ytimg.com`) for any that are missing. In the container,
 `sync-thumbnails.sh` downloads the missing ones (see
 [Thumbnail sync](#thumbnail-sync)).
 
+### Catalog editor
+
+`/studio/` edits the catalog in the browser: open a `videos.csv`, add, change
+or remove videos, and export the file again. The file is read and exported
+inside the page and never sent anywhere. Nothing is kept between visits, so
+export before you leave (the page warns if there are unexported changes).
+
+- Rows the editor can't use (an invalid id or date, or an id that's already
+  listed) are shown when the file is opened, and the export leaves them out.
+- Dates are saved in UTC, like the desktop studio (`2024-05-09T10:30:30Z`). A
+  date on its own is midnight UTC, and a time without an offset is UTC too.
+- Commas and double quotes in titles are saved as `;` and `'`, as the
+  desktop studio's export does.
+
+The page isn't linked from the site and asks search engines not to index it.
+It's served by the same container (and the standalone zips), so the same
+access controls apply to it.
+
 ## Development
 
 Requires Node.js 26 (the current LTS) or later.
