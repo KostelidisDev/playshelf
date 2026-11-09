@@ -114,6 +114,9 @@ sent anywhere. Nothing is kept between visits, so export before you leave
   editor needs both files open, so the games are there to choose from.
 - A new game's id is made from its title (`Pokémon Scarlet` becomes
   `pokemon-scarlet`) and never changes, so renaming a game keeps its videos.
+- Games and videos show as cards with their covers and thumbnails, as on the
+  site: a missing cover falls back to the newest video's thumbnail, and a
+  video's own thumbnail to YouTube's.
 - Two games can't have the same title, ignoring case.
 - Deleting a game takes it off its videos. A video whose only game it was is
   deleted too, and the editor says so first.

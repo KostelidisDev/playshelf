@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StudioApp } from "./StudioApp.tsx";
@@ -43,7 +43,7 @@ async function openBoth(user: User, gamesText: string, videosText: string) {
   await waitFor(() => expect(screen.queryByRole("tablist")).toBeInTheDocument());
 }
 
-const listedTitles = () => [...document.querySelectorAll(".record-title")].map((el) => el.textContent);
+const listedTitles = () => [...document.querySelectorAll(".studio-card .card-title")].map((el) => el.textContent);
 const statusText = () => screen.getByRole("status").textContent;
 
 /** The text of an exported file. Read as bytes, keeping the byte order mark
@@ -262,5 +262,38 @@ describe("StudioApp: videos", () => {
     await user.click(screen.getByRole("button", { name: "Delete Trailer" }));
     expect(listedTitles()).toEqual([]);
     expect(screen.getByText("No videos yet. Add one, or export the empty file.")).toBeInTheDocument();
+  });
+});
+
+describe("StudioApp: pictures", () => {
+  it("shows a game's cover, then its newest video's thumbnail, from the site's folder", async () => {
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda", "apex,Apex"), videos(`${ID_A},Old,2020-01-01,zelda`, `${ID_B},New,2024-01-01,zelda`));
+    const zelda = screen.getByText("Zelda").closest("li")!;
+    const image = zelda.querySelector("img")!;
+    expect(image).toHaveAttribute("src", "../assets/thumbnails/games/zelda.webp");
+    // Once the cover fails, the card tries the newest video's thumbnail.
+    fireEvent.error(image);
+    expect(zelda.querySelector("img")).toHaveAttribute("src", `../assets/thumbnails/${ID_B}.webp`);
+    // A game with no videos has only its cover to try.
+    const apex = screen.getByText("Apex").closest("li")!;
+    expect(apex.querySelector("img")).toHaveAttribute("src", "../assets/thumbnails/games/apex.webp");
+  });
+
+  it("shows a video's own thumbnail, then YouTube's", async () => {
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda"), videos(`${ID_A},Old,2020-01-01,zelda`));
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    const card = screen.getByText("Old").closest("li")!;
+    expect(card.querySelector("img")).toHaveAttribute("src", `../assets/thumbnails/${ID_A}.webp`);
+  });
+
+  it("gives the form the whole row while a card is being edited", async () => {
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda", "apex,Apex"), videos());
+    await user.click(screen.getByRole("button", { name: "Edit Zelda" }));
+    const form = screen.getByDisplayValue("Zelda").closest("li")!;
+    expect(form).toHaveClass("studio-edit");
+    expect(form.querySelector("img")).toBeNull();
   });
 });

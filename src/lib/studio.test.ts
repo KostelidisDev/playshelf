@@ -8,7 +8,9 @@ import {
   putGame,
   putVideo,
   removeGame,
+  newestVideoByGame,
   removeVideo,
+  studioPicture,
   videosOfGame,
 } from "./studio.ts";
 
@@ -147,5 +149,23 @@ describe("putVideo and removeVideo", () => {
 
   it("removes a video by id", () => {
     expect(removeVideo([video(ID, ["zelda"])], ID)).toEqual([]);
+  });
+});
+
+describe("newestVideoByGame", () => {
+  it("picks each game's newest video by publish date, whatever the order", () => {
+    const old: VideoRecord = { ...video("old", ["zelda"]), publishedAt: "2020-01-01T00:00:00Z" };
+    const fresh: VideoRecord = { ...video("fresh", ["zelda", "apex"]), publishedAt: "2024-01-01T00:00:00Z" };
+    const newest = newestVideoByGame([fresh, old]);
+    expect(newest.get("zelda")?.id).toBe("fresh");
+    expect(newest.get("apex")?.id).toBe("fresh");
+    expect(newest.has("empty")).toBe(false);
+  });
+});
+
+describe("studioPicture", () => {
+  it("steps up out of /studio/ for the site's pictures, and leaves remote ones", () => {
+    expect(studioPicture("assets/thumbnails/games/zelda.webp")).toBe("../assets/thumbnails/games/zelda.webp");
+    expect(studioPicture("https://i.ytimg.com/vi/x/hqdefault.jpg")).toBe("https://i.ytimg.com/vi/x/hqdefault.jpg");
   });
 });

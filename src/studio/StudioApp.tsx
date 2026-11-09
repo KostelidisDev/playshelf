@@ -9,12 +9,14 @@ import {
   CatalogFormatError,
   GAMES_FILE,
   VIDEOS_FILE,
+  coverUrl,
   linkVideos,
   parseDate,
   readGames,
   readVideos,
   toGamesFile,
   toVideosFile,
+  videoImages,
   type GameRecord,
   type SkippedRow,
   type VideoRecord,
@@ -24,10 +26,12 @@ import {
   checkGameTitle,
   checkVideo,
   newGameId,
+  newestVideoByGame,
   putGame,
   putVideo,
   removeGame,
   removeVideo,
+  studioPicture,
   videosOfGame,
   type FieldErrors,
   type VideoDraft,
@@ -35,6 +39,7 @@ import {
 } from "../lib/studio.ts";
 import { normalizeText, plural } from "../lib/text.ts";
 import { GameForm } from "./GameForm.tsx";
+import { RecordCard } from "./RecordCard.tsx";
 import { VideoForm } from "./VideoForm.tsx";
 
 /** One of the two files, as it is in the editor. `dirty` is set once it has
@@ -82,6 +87,8 @@ export function StudioApp() {
 
   const gameList = games?.records ?? NO_RECORDS;
   const videoList = videos?.records ?? NO_RECORDS;
+
+  const newestVideos = useMemo(() => newestVideoByGame(videoList), [videoList]);
 
   const gameTitles = useMemo(() => new Map(gameList.map((game) => [game.id, game.title])), [gameList]);
   const videoCounts = useMemo(() => {
@@ -349,54 +356,62 @@ export function StudioApp() {
               ) : (
                 <>
                   <Pager page={shown.page} pages={shown.pages} onPage={setPage} />
-                  <ul className="records">
+                  <ul className="studio-grid">
                     {tab === "games"
                       ? (shown.items as GameRecord[]).map((game) => (
-                        <li key={game.id} className={editing === game.id ? undefined : "record"}>
-                          {editing === game.id ? (
+                        editing === game.id ? (
+                          <li key={game.id} className="studio-edit">
                             <GameForm
                               initialTitle={game.title}
                               id={game.id}
                               onSave={(title) => saveGame(title, game.id)}
                               onCancel={() => setEditing(null)}
                             />
-                          ) : (
-                            <>
-                              <div className="record-info">
-                                <p className="record-title">{game.title}</p>
-                                <p className="record-meta">
-                                  <span>{plural(videoCounts.get(game.id) ?? 0, "video")}</span>
-                                  <span>{game.id}</span>
-                                </p>
-                              </div>
-                              <RowButtons label={game.title} disabled={editing !== null} onEdit={() => setEditing(game.id)} onDelete={() => deleteGame(game)} />
-                            </>
-                          )}
-                        </li>
+                          </li>
+                        ) : (
+                          <RecordCard
+                            key={game.id}
+                            variant="game"
+                            title={game.title}
+                            images={gameImages(game, newestVideos.get(game.id))}
+                            meta={
+                              <>
+                                <span>{plural(videoCounts.get(game.id) ?? 0, "video")}</span>
+                                <span>{game.id}</span>
+                              </>
+                            }
+                          >
+                            <RowButtons label={game.title} disabled={editing !== null} onEdit={() => setEditing(game.id)} onDelete={() => deleteGame(game)} />
+                          </RecordCard>
+                        )
                       ))
                       : (shown.items as VideoRecord[]).map((video) => (
-                        <li key={video.id} className={editing === video.id ? undefined : "record"}>
-                          {editing === video.id && games ? (
+                        editing === video.id && games ? (
+                          <li key={video.id} className="studio-edit">
                             <VideoForm
                               initial={{ id: video.id, title: video.title, publishedAt: video.publishedAt, gameIds: video.gameIds }}
                               games={gameList}
                               onSave={(draft) => saveVideo(draft, video.id)}
                               onCancel={() => setEditing(null)}
                             />
-                          ) : (
-                            <>
-                              <div className="record-info">
-                                <p className="record-title">{video.title}</p>
-                                <p className="record-meta">
-                                  <time dateTime={video.publishedAt}>{video.publishedAt}</time>
-                                  <span>{video.gameIds.map((id) => gameTitles.get(id) ?? id).join(", ") || "No game"}</span>
-                                  <span>{video.id}</span>
-                                </p>
-                              </div>
-                              <RowButtons label={video.title} disabled={editing !== null} onEdit={() => setEditing(video.id)} onDelete={() => deleteVideo(video)} />
-                            </>
-                          )}
-                        </li>
+                          </li>
+                        ) : (
+                          <RecordCard
+                            key={video.id}
+                            variant="video"
+                            title={video.title}
+                            images={studioPictures(videoImages(video))}
+                            meta={
+                              <>
+                                <time dateTime={video.publishedAt}>{video.publishedAt}</time>
+                                <span>{video.gameIds.map((id) => gameTitles.get(id) ?? id).join(", ") || "No game"}</span>
+                                <span>{video.id}</span>
+                              </>
+                            }
+                          >
+                            <RowButtons label={video.title} disabled={editing !== null} onEdit={() => setEditing(video.id)} onDelete={() => deleteVideo(video)} />
+                          </RecordCard>
+                        )
                       ))}
                   </ul>
                 </>
@@ -436,6 +451,15 @@ function download(name: string, text: string): void {
   link.remove();
   // Revoked a moment later, so the download has started first.
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** A game's pictures: its cover, then its newest video's, as on the site. */
+function gameImages(game: GameRecord, newest: VideoRecord | undefined): string[] {
+  return studioPictures([coverUrl(game), ...(newest ? videoImages(newest) : [])]);
+}
+
+function studioPictures(urls: readonly string[]): string[] {
+  return urls.map(studioPicture);
 }
 
 /** The skipped rows as lines for the notice. */

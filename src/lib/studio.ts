@@ -8,6 +8,7 @@ import {
   MAX_VIDEO_TITLE_LENGTH,
   VIDEO_ID_PATTERN,
   normalizePublishedAt,
+  parseDate,
   type GameRecord,
   type VideoRecord,
 } from "./catalog.ts";
@@ -156,4 +157,26 @@ export function putVideo(
 
 export function removeVideo(videos: readonly VideoRecord[], id: string): VideoRecord[] {
   return videos.filter((video) => video.id !== id);
+}
+
+// ---------- Pictures ----------
+
+/** Each game's newest video, by publish date. A game without a cover shows
+ * its picture, as on the site. */
+export function newestVideoByGame(videos: readonly VideoRecord[]): Map<string, VideoRecord> {
+  const time = (video: VideoRecord) => parseDate(video.publishedAt)?.getTime() ?? 0;
+  const newest = new Map<string, VideoRecord>();
+  for (const video of videos) {
+    for (const gameId of video.gameIds) {
+      const current = newest.get(gameId);
+      if (current === undefined || time(video) > time(current)) newest.set(gameId, video);
+    }
+  }
+  return newest;
+}
+
+/** The studio sits one folder down (/studio/), so the site's relative picture
+ * paths need a "../" in front. Remote pictures are left as they are. */
+export function studioPicture(url: string): string {
+  return url.startsWith("https://") ? url : `../${url}`;
 }

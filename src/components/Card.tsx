@@ -41,12 +41,12 @@ export const Card = memo(function Card({ href, title, meta, variant, images, ext
 
 /** The first of `images` that loads. The area shimmers (.loading) until an
  * image loads or every source has failed. */
-function Picture({ images, card }: { images: readonly string[]; card: RefObject<HTMLAnchorElement | null> }) {
+export function Picture({ images, card }: { images: readonly string[]; card: RefObject<HTMLElement | null> }) {
   // Keyed on the sources, so a card whose sources change starts again.
   return <Attempt key={images.join("|")} images={images} card={card} />;
 }
 
-function Attempt({ images, card }: { images: readonly string[]; card: RefObject<HTMLAnchorElement | null> }) {
+function Attempt({ images, card }: { images: readonly string[]; card: RefObject<HTMLElement | null> }) {
   const [index, setIndex] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const src = images[index];
