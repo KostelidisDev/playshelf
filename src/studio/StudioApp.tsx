@@ -4,7 +4,7 @@
  * server. Both files are needed to edit: a video is on games, so the games
  * have to be there to choose from. */
 
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   CatalogFormatError,
   GAMES_FILE,
@@ -38,6 +38,7 @@ import {
   type VideoField,
 } from "../lib/studio.ts";
 import { normalizeText, plural } from "../lib/text.ts";
+import { browserDraftStore, type Draft, type DraftStore } from "./draftStore.ts";
 import { GameForm } from "./GameForm.tsx";
 import { RecordCard } from "./RecordCard.tsx";
 import { VideoForm } from "./VideoForm.tsx";
@@ -59,12 +60,18 @@ const NO_RECORDS: readonly never[] = [];
 /** The "form is open for a new row" marker. Ids can't contain "+", so it
  * can't be a game's or a video's id. */
 const NEW = "+new";
+const defaultDrafts = browserDraftStore();
 
-export function StudioApp() {
+/** `drafts` is where the saved copy is kept; the page's own is the default. */
+export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = {}) {
   const [games, setGames] = useState<Slot<GameRecord> | null>(null);
   const [videos, setVideos] = useState<Slot<VideoRecord> | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  /** Whether this browser holds a copy of the files as they are now. */
+  const [cached, setCached] = useState(false);
+  /** Set once the user opens or starts a catalog, so a late restore doesn't replace it. */
+  const touched = useRef(false);
   const [tab, setTab] = useState<Tab>("games");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -73,6 +80,64 @@ export function StudioApp() {
 
   const ready = games !== null && videos !== null;
   const dirty = (games?.dirty ?? false) || (videos?.dirty ?? false);
+
+  // Restores the saved copy, if there is one and nothing has been opened yet.
+  useEffect(() => {
+    let cancelled = false;
+    void drafts.load().then((draft) => {
+      if (cancelled || draft === null || touched.current) return;
+      try {
+        const restoredGames = draft.games === null ? null : readGames(draft.games, GAMES_FILE);
+        const restoredVideos = draft.videos === null ? null : readVideos(draft.videos, VIDEOS_FILE);
+        if (restoredGames) setGames({ records: restoredGames.records, dirty: draft.gamesDirty });
+        if (restoredVideos) setVideos({ records: restoredVideos.records, dirty: draft.videosDirty });
+        if (restoredGames || restoredVideos) {
+          setCached(true);
+          setNotice("Restored your last edits from this browser.");
+        }
+      } catch {
+        setNotice("The saved copy in this browser couldn't be read, so it wasn't loaded.");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [drafts]);
+
+  // Every change is kept in this browser, so a page closed by mistake loses nothing.
+  useEffect(() => {
+    if (!drafts.available || (games === null && videos === null)) return;
+    const draft: Draft = {
+      games: games ? toGamesFile(games.records) : null,
+      videos: videos ? toVideosFile(videos.records) : null,
+      gamesDirty: games?.dirty ?? false,
+      videosDirty: videos?.dirty ?? false,
+    };
+    let cancelled = false;
+    void drafts.save(draft).then((ok) => {
+      if (cancelled) return;
+      setCached(ok);
+      if (!ok) setNotice("This browser won't keep a copy of the catalog. Export the files to keep your changes.");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [games, videos, drafts]);
+
+  async function forgetCopy() {
+    if (!window.confirm("Forget the saved copy in this browser? Changes you haven't exported are lost.")) return;
+    if (!(await drafts.clear())) {
+      setNotice("The saved copy couldn't be removed from this browser.");
+      return;
+    }
+    touched.current = true;
+    setCached(false);
+    setGames(null);
+    setVideos(null);
+    setNotes([]);
+    setTab("games");
+    resetView();
+  }
 
   // Leaving the page with changes not yet exported would lose them.
   useEffect(() => {
@@ -140,6 +205,7 @@ export function StudioApp() {
     }
     try {
       const text = await file.text();
+      touched.current = true;
       if (kind === "games") {
         const read = readGames(text, file.name);
         // A games file that replaces the old one may leave videos without a game.
@@ -171,6 +237,7 @@ export function StudioApp() {
 
   function startNew() {
     if (!mayReplace(games) || !mayReplace(videos)) return;
+    touched.current = true;
     // A new catalog counts as unsaved: it isn't on disk yet.
     setGames({ records: [], dirty: true });
     setVideos({ records: [], dirty: true });
@@ -262,6 +329,7 @@ export function StudioApp() {
           <p className="studio-status" role="status">
             {summary}
             {dirty && <span className="studio-dirty"> · unsaved changes</span>}
+            {cached && <span> · copy kept in this browser</span>}
           </p>
         </div>
         {(games || videos) && (
@@ -276,6 +344,16 @@ export function StudioApp() {
 
       <main className="studio-main">
         {notice && <p className="studio-notice" role="alert">{notice}</p>}
+
+        {cached && (
+          <div className="studio-notice studio-cache">
+            <p>
+              Your edits are kept in this browser, but only temporarily: the browser can delete them at any time.
+              Export both files to keep them.
+            </p>
+            <button className="btn btn-secondary btn-small" type="button" onClick={forgetCopy}>Forget saved copy</button>
+          </div>
+        )}
 
         {notes.length > 0 && (
           <details className="studio-notice studio-skipped">
@@ -425,7 +503,10 @@ export function StudioApp() {
               The site reads two files: <strong>{GAMES_FILE}</strong>, the games, and <strong>{VIDEOS_FILE}</strong>, the
               videos and the games each one is on. Open both to edit them, or start a new catalog.
             </p>
-            <p>Nothing is uploaded. The files stay in this page until you export them.</p>
+            <p>
+              Nothing is uploaded. The files stay in this page until you export them
+              {drafts.available && ", and a temporary copy is kept in this browser"}.
+            </p>
             <div className="studio-actions">
               <OpenButton label={`Open ${GAMES_FILE}`} primary={!games} onFile={onFileChosen("games")} />
               <OpenButton label={`Open ${VIDEOS_FILE}`} primary={!!games && !videos} onFile={onFileChosen("videos")} />

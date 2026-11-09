@@ -107,8 +107,10 @@ environment and never written to disk.
 `/studio/` edits both files in the browser. Open `Games.txt` and `Videos.txt`
 (or start a new catalog), add, change or delete games and videos, and export
 each file again. The files are read and exported inside the page and never
-sent anywhere. Nothing is kept between visits, so export before you leave
-(the page warns if there are unexported changes).
+sent anywhere. Each change is also kept in this browser (IndexedDB), so the
+last edits come back on the next visit. That copy is temporary: the browser
+can delete it at any time, so export before you leave (the page warns if
+there are unexported changes). "Forget saved copy" removes it.
 
 - A video needs at least one game, picked from the games in the editor. The
   editor needs both files open, so the games are there to choose from.

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Draft, DraftStore } from "./draftStore.ts";
 import { StudioApp } from "./StudioApp.tsx";
 
 const GAMES_HEADER = "game_id,title";
@@ -295,5 +296,79 @@ describe("StudioApp: pictures", () => {
     const form = screen.getByDisplayValue("Zelda").closest("li")!;
     expect(form).toHaveClass("studio-edit");
     expect(form.querySelector("img")).toBeNull();
+  });
+});
+
+/** A saved copy kept in memory, standing in for the browser's. */
+function memoryDrafts(initial: Draft | null = null, { saves = true } = {}) {
+  let saved: Draft | null = initial;
+  const store: DraftStore = {
+    available: true,
+    load: async () => saved,
+    save: vi.fn(async (draft: Draft) => {
+      if (saves) saved = draft;
+      return saves;
+    }),
+    clear: vi.fn(async () => {
+      saved = null;
+      return true;
+    }),
+  };
+  return { store, peek: () => saved };
+}
+
+describe("StudioApp: the saved copy in this browser", () => {
+  it("keeps the files, with the unsaved changes, and restores them on the next visit", async () => {
+    const drafts = memoryDrafts();
+    const user = userEvent.setup();
+    const first = render(<StudioApp drafts={drafts.store} />);
+    await openBoth(user, games("zelda,Zelda"), videos(`${ID_A},Old,2020-01-01,zelda`));
+    await user.click(screen.getByRole("button", { name: "Add game" }));
+    await user.type(screen.getByLabelText("Title"), "Apex");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(drafts.peek()?.gamesDirty).toBe(true));
+    expect(drafts.peek()?.games).toContain("apex");
+    expect(screen.getByText(/kept in this browser, but only temporarily/)).toBeInTheDocument();
+    first.unmount();
+
+    render(<StudioApp drafts={drafts.store} />);
+    expect(await screen.findByRole("tablist")).toBeInTheDocument();
+    expect(listedTitles()).toEqual(["Apex", "Zelda"]);
+    expect(screen.getByText("Restored your last edits from this browser.")).toBeInTheDocument();
+    expect(statusText()).toContain("unsaved changes");
+  });
+
+  it("restores a single file, so the other can still be opened", async () => {
+    const drafts = memoryDrafts({ games: `${GAMES_HEADER}\nzelda,Zelda\n`, videos: null, gamesDirty: false, videosDirty: false });
+    render(<StudioApp drafts={drafts.store} />);
+    expect(await screen.findByText("Games.txt is open. Open Videos.txt to continue.")).toBeInTheDocument();
+    expect(screen.getByText("Games.txt · 1 game")).toBeInTheDocument();
+  });
+
+  it("leaves out a copy it can't read, and says so", async () => {
+    const drafts = memoryDrafts({ games: "title\nZelda\n", videos: null, gamesDirty: true, videosDirty: false });
+    render(<StudioApp drafts={drafts.store} />);
+    expect(await screen.findByText("The saved copy in this browser couldn't be read, so it wasn't loaded.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Edit the catalog" })).toBeInTheDocument();
+  });
+
+  it("forgets the copy on request, and goes back to the start", async () => {
+    const drafts = memoryDrafts();
+    const user = userEvent.setup();
+    render(<StudioApp drafts={drafts.store} />);
+    await openBoth(user, games("zelda,Zelda"), videos());
+    await user.click(screen.getByRole("button", { name: "Forget saved copy" }));
+    expect(drafts.store.clear).toHaveBeenCalledOnce();
+    expect(drafts.peek()).toBeNull();
+    expect(await screen.findByRole("heading", { name: "Edit the catalog" })).toBeInTheDocument();
+  });
+
+  it("says when the browser won't keep a copy", async () => {
+    const drafts = memoryDrafts(null, { saves: false });
+    const user = userEvent.setup();
+    render(<StudioApp drafts={drafts.store} />);
+    await openBoth(user, games("zelda,Zelda"), videos());
+    expect(await screen.findByText(/won't keep a copy of the catalog/)).toBeInTheDocument();
+    expect(screen.queryByText(/kept in this browser, but only temporarily/)).not.toBeInTheDocument();
   });
 });

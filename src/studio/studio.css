@@ -92,6 +92,20 @@
   border-color: #ff8a80;
 }
 
+/* The notice that the saved copy is only temporary, with its button. */
+.studio-cache {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.studio-cache p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
 .studio-skipped summary {
   cursor: pointer;
   font-weight: 600;
