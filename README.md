@@ -6,10 +6,11 @@ installable web app (React + TypeScript, built with Vite) served by Apache in
 a hardened container. One image serves any catalog: the site's name and
 description are set at runtime.
 
-- Browse games alphabetically, search (accent-insensitive), and page through
-  each game's videos, newest first.
+- Browse every game alphabetically, including those with no videos yet,
+  search (accent-insensitive), and watch a game's videos, newest first. A
+  video can be on several games.
 - Works offline once visited, and installs as an app (PWA).
-- No backend: the whole catalog is one CSV file.
+- No backend: the whole catalog is two CSV files, Games.txt and Videos.txt.
 - On October 31 the site dresses up for Halloween, jump scare and shriek
   included; typing `boo` anywhere outside a text field toggles it on any
   other day. Visitors who ask their system for reduced motion get only the
@@ -17,46 +18,111 @@ description are set at runtime.
 
 ## Data
 
-The catalog is one CSV file, `assets/api/videos.csv`. Neither it nor the
-thumbnails are committed or built into the image: the container mounts both
-from volumes (see [Deployment](#deployment)). For local development, put a
-copy in `public/assets/api/videos.csv` (git-ignored).
+The catalog is two files, `assets/api/Games.txt` and `assets/api/Videos.txt`.
+The catalog isn't committed or built into the image: the container mounts the
+folder from a volume (see [Deployment](#deployment)).
+For local development, put copies in `public/assets/api/` (git-ignored).
 
-Until the catalog volume holds a `videos.csv`, the container serves a
-one-video demo catalog (`public/assets/demo/videos.csv`, built into the
-image) at the same URL, and the thumbnail sync reads it too. The volume
-stays read-only; once a real `videos.csv` is there, it's used straight away.
+Until the catalog volume holds both files, the container serves a demo
+catalog (`public/assets/demo/`, built into the image) at the same URLs. The
+volume stays read-only. Once both files
+are there, they're used straight away: replace them and the site shows the
+new catalog on the next visit.
+
+**`Games.txt`**, one row per game:
 
 ```csv
-video_id,title,published_at,game_title
-o9KQ4rlymEQ,Clair Obscur: Expedition 33 | Reveal Trailer,2024-06-09,Clair Obscur: Expedition 33
+game_id,title
+clair-obscur-expedition-33,Clair Obscur: Expedition 33
 ```
 
-| Column         | Notes                                                             |
-| -------------- | ----------------------------------------------------------------- |
-| `video_id`     | YouTube id (11 characters). Rows with an invalid id are skipped.  |
-| `title`        | Video title.                                                      |
-| `published_at` | ISO 8601 date or timestamp.                                       |
-| `game_title`   | Groups videos into games. Empty puts the video under "Unmatched". |
+| Column    | Notes                                                                                  |
+| --------- | -------------------------------------------------------------------------------------- |
+| `game_id` | 1 to 64 letters, digits, `-` or `_`. Stays the same when the game is renamed. Rows with a bad or repeated id are skipped. |
+| `title`   | The game's name, up to 150 characters. A row without one is skipped.                  |
 
-Thumbnails are read from `assets/thumbnails/<video_id>.webp`, falling back
-to YouTube's (`i.ytimg.com`) for any that are missing. In the container,
-`sync-thumbnails.sh` downloads the missing ones (see
-[Thumbnail sync](#thumbnail-sync)).
+**`Videos.txt`**, one row per video:
+
+```csv
+video_id,title,published_at,game_ids
+o9KQ4rlymEQ,Clair Obscur: Expedition 33 | Reveal Trailer,2024-06-09,clair-obscur-expedition-33
+```
+
+| Column         | Notes                                                                                   |
+| -------------- | --------------------------------------------------------------------------------------- |
+| `video_id`     | YouTube id (11 characters). Rows with an invalid or repeated id are skipped.            |
+| `title`        | Video title. Empty shows the id.                                                        |
+| `published_at` | ISO 8601 date or timestamp.                                                             |
+| `game_ids`     | One or more game ids from `Games.txt`, separated by `;`. A video is shown on each of its games. Ids that aren't in `Games.txt` are left out, and a video with none left is skipped. |
+
+Both files are CSV: UTF-8 (a byte order mark is fine), commas between the
+columns, and a field in double quotes when it has a comma in it. A game
+with no videos is still listed, with "No videos yet". Rows that can't be
+used are skipped, and listed in the [catalog editor](#catalog-editor) when
+the files are opened.
+
+### Pictures
+
+Each game shows its cover (box art) and each video its thumbnail:
+
+- Game covers are stored as `assets/thumbnails/games/<game_id>.webp`, and
+  video thumbnails as `assets/thumbnails/<video_id>.webp`. A game without a
+  cover shows its newest video's thumbnail, and a picture that's missing
+  altogether shows as a blank.
+- The container has no copy of the pictures. A video card shows YouTube's
+  thumbnail, and a game without a cover shows its newest video's. Game covers
+  need Twitch credentials, which don't belong in the container, so the
+  Docker deployment shows no covers.
+- A standalone site can serve its own copies: `preload_media.py` (below)
+  fetches both from Twitch and YouTube, and the files are uploaded with the
+  site (see [Standalone](#standalone-shared-hosting)). Pictures that are
+  already there are skipped.
+
+#### Preloading pictures
+
+`preload_media.py` runs on your own machine, with Python 3 and Pillow
+(`pip install pillow`). It needs a Twitch application for the covers: create
+one at [dev.twitch.tv/console](https://dev.twitch.tv/console) and copy its
+Client ID and Client Secret.
+
+```sh
+export TWITCH_CLIENT_ID=...
+export TWITCH_CLIENT_SECRET=...
+python3 preload_media.py --catalog public/assets/api --thumbnails public/assets/thumbnails
+```
+
+| Option           | Purpose                                                                         |
+| ---------------- | ------------------------------------------------------------------------------- |
+| `--no-covers`    | Skip the Twitch covers (no credentials needed).                                 |
+| `--no-thumbnails`| Skip the YouTube thumbnails.                                                    |
+| `--force`        | Fetch again, even the pictures that are already there.                          |
+| `--dry-run`      | List what would be fetched, with no network access.                             |
+
+A game's cover is looked up on Twitch by its exact title. A game that
+Twitch doesn't know is listed at the end, and its cover can be added by
+hand as `games/<game_id>.webp`. The client secret is only read from the
+environment and never written to disk.
 
 ### Catalog editor
 
-`/studio/` edits the catalog in the browser: open a `videos.csv`, add, change
-or remove videos, and export the file again. The file is read and exported
-inside the page and never sent anywhere. Nothing is kept between visits, so
-export before you leave (the page warns if there are unexported changes).
+`/studio/` edits both files in the browser. Open `Games.txt` and `Videos.txt`
+(or start a new catalog), add, change or delete games and videos, and export
+each file again. The files are read and exported inside the page and never
+sent anywhere. Nothing is kept between visits, so export before you leave
+(the page warns if there are unexported changes).
 
-- Rows the editor can't use (an invalid id or date, or an id that's already
-  listed) are shown when the file is opened, and the export leaves them out.
-- Dates are saved in UTC, like the desktop studio (`2024-05-09T10:30:30Z`). A
+- A video needs at least one game, picked from the games in the editor. The
+  editor needs both files open, so the games are there to choose from.
+- A new game's id is made from its title (`Pokémon Scarlet` becomes
+  `pokemon-scarlet`) and never changes, so renaming a game keeps its videos.
+- Two games can't have the same title, ignoring case.
+- Deleting a game takes it off its videos. A video whose only game it was is
+  deleted too, and the editor says so first.
+- Rows the editor can't use are shown when the files are opened, and the
+  export leaves them out.
+- Dates are saved in UTC (`2024-05-09T10:30:30Z`). A
   date on its own is midnight UTC, and a time without an offset is UTC too.
-- Commas and double quotes in titles are saved as `;` and `'`, as the
-  desktop studio's export does.
+- Commas and double quotes in video titles are saved as `;` and `'`.
 
 The page isn't linked from the site and asks search engines not to index it.
 It's served by the same container (and the standalone zips), so the same
@@ -86,19 +152,17 @@ npm run standalone -- <dir>   # after build: a standalone site (see below)
 docker build -t playshelf .
 docker run --rm -p 8080:8080 -e SITE_NAME="Some Site" \
   -v "$PWD/public/assets/api:/usr/local/apache2/htdocs/assets/api:ro" \
-  -v "$PWD/thumbnails:/usr/local/apache2/htdocs/assets/thumbnails" \
   playshelf
 ```
 
 The build runs the tests, then builds the site into an `httpd` (Alpine)
-image. Build arguments:
+image. The Node and httpd base images are pinned in the `FROM` lines of the
+Dockerfile. Build arguments:
 
 | Argument        | Default                      | Purpose                                                          |
 | --------------- | ---------------------------- | ---------------------------------------------------------------- |
 | `BUILD_VERSION` | `v<Y>.<M>.<D>-build<HHMMSS>` | Version shown in the app bar and used to name the offline cache. |
 | `BUILD_TZ`      | `Europe/Athens`              | Time zone for the default build version.                         |
-| `NODE_TAG`      | `26.11.1-alpine3.24`         | Node image used for the build (Node 26 LTS).                     |
-| `HTTPD_TAG`     | `2.4.69-alpine3.24`          | Apache image that serves the site.                               |
 
 ### Site name and description
 
@@ -114,28 +178,6 @@ image. Build arguments:
 of text. Changing them only needs a restart, not a rebuild. The files in the
 image stay read-only.
 
-### Thumbnail sync
-
-At start, `docker-entrypoint.sh` runs `sync-thumbnails.sh` in the background.
-For every video in `videos.csv` without a `<video_id>.webp`, it downloads
-YouTube's 16:9 maxres thumbnail (or the 4:3 hq one with its letterbox bars
-cropped off), converts it to WebP with `cwebp`, and writes it to the
-thumbnails volume (managed by Docker). A thumbnail is roughly a quarter of
-YouTube's JPEG. It then checks the CSV again on an interval, so new videos
-get their thumbnails without a restart. Apache starts straight away; until a thumbnail exists, the
-site shows YouTube's.
-
-| Variable                   | Default | Purpose                                         |
-| -------------------------- | ------- | ----------------------------------------------- |
-| `THUMBNAILS_SYNC`          | `true`  | `false` turns the sync off.                     |
-| `THUMBNAILS_SYNC_INTERVAL` | `3600`  | Seconds between checks; `0` checks only at start. |
-| `THUMBNAILS_WIDTH`         | `640`   | WebP width in pixels.                           |
-| `THUMBNAILS_QUALITY`       | `80`    | WebP quality (0–100).                           |
-| `THUMBNAILS_JOBS`          | `4`     | Downloads at a time.                            |
-
-The sync skips (and logs why) when the CSV is missing or the thumbnails
-directory isn't writable.
-
 ### Hardening
 
 - Runs as `www-data` on port 8080, with no Linux capabilities needed.
@@ -145,26 +187,23 @@ directory isn't writable.
 
 ## Deployment
 
-`docker-compose.yml` runs the image behind Traefik, with basic auth, a
-read-only filesystem, all capabilities dropped, and CPU, memory and process
-limits.
+`docker-compose.basic-auth.yml` runs the image behind Traefik, with basic auth,
+a read-only filesystem, all capabilities dropped, and CPU, memory and process
+limits. `docker-compose.yml` is the same without the basic-auth middleware, for
+a site that is protected some other way (or not at all).
 
 ```sh
 cp .env.example .env   # set DOMAIN, PLAYSHELF_AUTH and the data volume
-docker compose up -d
+docker compose -f docker-compose.basic-auth.yml up -d
 ```
+
+`PLAYSHELF_AUTH` is only read by `docker-compose.basic-auth.yml`.
 
 ### Volumes
 
 | Volume       | Mounted at (in `htdocs/`)       | Access     | Holds                    |
 | ------------ | ------------------------------- | ---------- | ------------------------ |
-| `data`       | `assets/api`                    | read-only  | `videos.csv`             |
-| `thumbnails` | `assets/thumbnails`             | read-write | `<video_id>.webp` files  |
-
-`thumbnails` is a plain Docker-managed volume (`<INSTANCE_NAME>-thumbnails`).
-Docker seeds it from the image when it creates it, so it starts owned by
-`www-data`. There's nothing to configure; if it's removed, the sync downloads
-the thumbnails again.
+| `data`       | `assets/api`                    | read-only  | `Games.txt`, `Videos.txt` |
 
 `data` is your own mount: a **bind mount**, an **NFS export** or a
 **CIFS/SMB share**, set by `PLAYSHELF_DATA_VOLUME_TYPE`, `_OPTIONS` and
@@ -208,16 +247,13 @@ caching, compression and the demo catalog). It needs Apache 2.4 with
 domain's root.
 
 1. Upload the zip's contents to the document root, `.htaccess` included.
-2. Upload the catalog as `assets/api/videos.csv` (format in [Data](#data)).
-   Until then, the demo catalog is shown, if the host has `mod_rewrite`.
-3. Upload the thumbnails as `assets/thumbnails/<video_id>.webp`. Videos
-   without one show YouTube's thumbnail. `sync-thumbnails.sh` can make them
-   on any machine with `wget` and `cwebp`:
-
-   ```sh
-   mkdir -p thumbnails
-   THUMBNAILS_CSV=videos.csv THUMBNAILS_DIR=thumbnails THUMBNAILS_SYNC_INTERVAL=0 ./sync-thumbnails.sh
-   ```
+2. Upload the catalog as `assets/api/Games.txt` and `assets/api/Videos.txt`
+   (format in [Data](#data)). Until both are there, the demo catalog is shown,
+   if the host has `mod_rewrite`.
+3. Upload the thumbnails as `assets/thumbnails/<video_id>.webp`, and the
+   covers as `assets/thumbnails/games/<game_id>.webp`. Videos without one show
+   YouTube's thumbnail. `preload_media.py` makes both on any machine (see
+   [Preloading pictures](#preloading-pictures)).
 
 To update, upload a newer zip's contents over the old ones. The zips contain
 no catalog or thumbnails, so the uploaded ones stay.
@@ -236,13 +272,19 @@ build/                 Build-time helpers: CSP, service worker shell, version, s
 public/                Static files: icons, web manifest, demo catalog (plus a local, git-ignored one)
 src/components/        React components (and, in halloween/, the Halloween artwork)
 src/hooks/             React hooks
-src/lib/               Pure logic: CSV parsing, routing, pagination, text, Halloween date and spell
+src/lib/               Pure logic: catalog and CSV parsing, routing, pagination, text, the editor's rules, Halloween date and spell
+src/studio/            The catalog editor at /studio/
 src/sw/                Service worker (offline support)
 src/ui/                Browser helpers: brand, version, tint, SW registration, Halloween shriek
+studio/                The catalog editor's HTML entry (a second page of the same build)
 site.conf              Apache config: headers, caching, site settings, demo catalog
+Dockerfile             Builds and tests the site, then serves it from httpd
+docker-compose.yml     Runs the image behind Traefik (no auth)
+docker-compose.basic-auth.yml   The same, with basic auth in front
+.env.example           Every setting for the compose files, with its default
 CLAUDE.md              Notes for Claude Code: commands, invariants, conventions
-docker-entrypoint.sh   Escapes the site settings and starts the thumbnail sync
-sync-thumbnails.sh     Downloads missing thumbnails as WebP
+docker-entrypoint.sh   Escapes the site settings for the page and the web manifest
+preload_media.py       Preloads game covers (Twitch) and video thumbnails, on your own machine
 ```
 
 ## How it was built

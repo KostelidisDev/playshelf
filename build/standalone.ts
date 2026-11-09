@@ -57,12 +57,13 @@ ${denied}
 ${indent([...mime, "AddType image/webp .webp"])}
 </IfModule>
 
-# Until assets/api/videos.csv is uploaded, the demo catalog is served in its
-# place.
+# Until assets/api/Games.txt and Videos.txt are uploaded, the demo catalog
+# is served in their place, as a pair.
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^assets/api/videos\\.csv$ assets/demo/videos.csv [L]
+    RewriteCond %{DOCUMENT_ROOT}/assets/api/Games.txt !-f
+    RewriteCond %{DOCUMENT_ROOT}/assets/api/Videos.txt !-f
+    RewriteRule ^assets/api/(Games|Videos)\\.txt$ assets/demo/$1.txt [L]
 </IfModule>
 
 <IfModule mod_headers.c>

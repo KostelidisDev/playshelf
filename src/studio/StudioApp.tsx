@@ -1,56 +1,73 @@
-/* The catalog editor (served at /studio/): open a videos.csv, add, change
- * or remove its videos, and export it again. The file is read and written
- * in this page only; nothing is sent to a server. */
+/* The catalog editor (served at /studio/): opens Games.txt and Videos.txt,
+ * adds, changes or removes games and videos, and exports the files again.
+ * The files are read and written in this page only; nothing is sent to a
+ * server. Both files are needed to edit: a video is on games, so the games
+ * have to be there to choose from. */
 
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
-  CATALOG_FILE_NAME,
   CatalogFormatError,
-  MAX_CATALOG_BYTES,
-  checkRecord,
-  gameKey,
-  gameTitles,
-  putRecord,
-  readCatalog,
-  removeRecord,
-  sortNewestFirst,
-  toCatalogCsv,
-  type Draft,
-  type FieldErrors,
+  GAMES_FILE,
+  VIDEOS_FILE,
+  linkVideos,
+  parseDate,
+  readGames,
+  readVideos,
+  toGamesFile,
+  toVideosFile,
+  type GameRecord,
   type SkippedRow,
   type VideoRecord,
+} from "../lib/catalog.ts";
+import { paginate } from "../lib/pagination.ts";
+import {
+  checkGameTitle,
+  checkVideo,
+  newGameId,
+  putGame,
+  putVideo,
+  removeGame,
+  removeVideo,
+  videosOfGame,
+  type FieldErrors,
+  type VideoDraft,
+  type VideoField,
 } from "../lib/studio.ts";
 import { normalizeText, plural } from "../lib/text.ts";
-import { RecordForm } from "./RecordForm.tsx";
+import { GameForm } from "./GameForm.tsx";
+import { VideoForm } from "./VideoForm.tsx";
 
-/** One catalog open in the editor. */
-interface Session {
-  readonly fileName: string;
-  readonly records: readonly VideoRecord[];
-  readonly skipped: readonly SkippedRow[];
-  /** Changed since it was opened or last exported. */
+/** One of the two files, as it is in the editor. `dirty` is set once it has
+ * changed since it was opened or last exported. */
+interface Slot<T> {
+  readonly records: readonly T[];
   readonly dirty: boolean;
 }
 
-/** Which row has its form open: a video's id, NEW for a new video, or null.
- * Video ids are 11 characters, so NEW can't clash with one. */
-const NEW = "new";
-type Editing = string | typeof NEW | null;
+type Tab = "games" | "videos";
 
-const EMPTY_DRAFT: Draft = { id: "", title: "", publishedAt: "", gameTitle: "" };
-const NO_RECORDS: readonly VideoRecord[] = [];
-/** Rows drawn at once in the list. */
+/** Rows drawn at once in a list. */
 const PAGE_SIZE = 50;
+/** The largest file that can be a catalog file; anything bigger is the wrong file. */
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const NO_RECORDS: readonly never[] = [];
+/** The "form is open for a new row" marker. Ids can't contain "+", so it
+ * can't be a game's or a video's id. */
+const NEW = "+new";
 
 export function StudioApp() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [games, setGames] = useState<Slot<GameRecord> | null>(null);
+  const [videos, setVideos] = useState<Slot<VideoRecord> | null>(null);
+  const [notes, setNotes] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("games");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [editing, setEditing] = useState<Editing>(null);
+  /** The id of the row whose form is open, or NEW. Only the current tab's rows. */
+  const [editing, setEditing] = useState<string | null>(null);
 
-  const dirty = session?.dirty ?? false;
-  const records = session?.records ?? NO_RECORDS;
+  const ready = games !== null && videos !== null;
+  const dirty = (games?.dirty ?? false) || (videos?.dirty ?? false);
 
   // Leaving the page with changes not yet exported would lose them.
   useEffect(() => {
@@ -63,110 +80,172 @@ export function StudioApp() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  // Only one page of rows is drawn at a time: a catalog of thousands of
-  // videos would otherwise mean thousands of rows re-rendered on every key.
-  const matches = useMemo(() => {
-    const sorted = sortNewestFirst(records);
+  const gameList = games?.records ?? NO_RECORDS;
+  const videoList = videos?.records ?? NO_RECORDS;
+
+  const gameTitles = useMemo(() => new Map(gameList.map((game) => [game.id, game.title])), [gameList]);
+  const videoCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const video of videoList) for (const id of video.gameIds) counts.set(id, (counts.get(id) ?? 0) + 1);
+    return counts;
+  }, [videoList]);
+
+  const gameMatches = useMemo(() => {
+    const sorted = [...gameList].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
     const needle = normalizeText(query.trim());
-    if (!needle) return sorted;
-    return sorted.filter((record) => normalizeText(`${record.id} ${record.title} ${record.gameTitle}`).includes(needle));
-  }, [records, query]);
+    return needle ? sorted.filter((game) => normalizeText(`${game.id} ${game.title}`).includes(needle)) : sorted;
+  }, [gameList, query]);
 
-  const pageCount = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
-  // Clamped, so a page that no longer exists (after deletes or a new search) shows the last one.
-  const current = Math.min(page, pageCount);
-  const visible = useMemo(
-    () => matches.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE),
-    [matches, current],
-  );
+  const videoMatches = useMemo(() => {
+    const newest = [...videoList].sort((a, b) => (parseDate(b.publishedAt)?.getTime() ?? 0) - (parseDate(a.publishedAt)?.getTime() ?? 0));
+    const needle = normalizeText(query.trim());
+    if (!needle) return newest;
+    return newest.filter((video) => {
+      const names = video.gameIds.map((id) => gameTitles.get(id) ?? "").join(" ");
+      return normalizeText(`${video.id} ${video.title} ${names}`).includes(needle);
+    });
+  }, [videoList, query, gameTitles]);
 
-  const gameCount = useMemo(
-    () => new Set(records.filter((record) => record.gameTitle !== "").map((record) => gameKey(record.gameTitle))).size,
-    [records],
-  );
-  const suggestions = useMemo(() => gameTitles(records), [records]);
+  const matches = tab === "games" ? gameMatches : videoMatches;
+  const shown = paginate(matches, page, PAGE_SIZE);
 
-  /** Opening a file or starting a new one replaces the catalog on screen,
-   * so unsaved changes get a chance to be kept first. */
-  const mayReplace = () => !dirty || window.confirm("Discard the changes you haven't exported?");
+  /** Opening a file, or starting a new catalog, replaces what's on screen,
+   * so unexported changes get a chance to be kept first. */
+  const mayReplace = (slot: Slot<unknown> | null) => !slot?.dirty || window.confirm("Discard the changes you haven't exported?");
 
-  function show(next: Session) {
-    setSession(next);
+  function resetView() {
     setEditing(null);
     setQuery("");
+    setPage(1);
     setNotice(null);
   }
 
-  async function openFile(file: File) {
-    if (!mayReplace()) return;
-    if (file.size > MAX_CATALOG_BYTES) {
-      setNotice(`${file.name} is too large to be a catalog (over ${MAX_CATALOG_BYTES / 1024 / 1024} MB).`);
+  function switchTab(next: Tab) {
+    setTab(next);
+    resetView();
+  }
+
+  async function openFile(kind: Tab, file: File) {
+    if (!mayReplace(kind === "games" ? games : videos)) return;
+    if (file.size > MAX_FILE_BYTES) {
+      setNotice(`${file.name} is too large to be a catalog file (over ${MAX_FILE_BYTES / 1024 / 1024} MB).`);
       return;
     }
     try {
-      const loaded = readCatalog(await file.text(), file.name);
-      show({ fileName: file.name, records: loaded.records, skipped: loaded.skipped, dirty: false });
+      const text = await file.text();
+      if (kind === "games") {
+        const read = readGames(text, file.name);
+        // A games file that replaces the old one may leave videos without a game.
+        const link = videos ? linkVideos(videos.records, read.records) : null;
+        setGames({ records: read.records, dirty: false });
+        if (videos && link) setVideos({ records: link.videos, dirty: videos.dirty || link.skipped.length > 0 });
+        setNotes(describe([...read.skipped, ...(link?.skipped ?? [])]));
+      } else {
+        const read = readVideos(text, file.name);
+        // Videos can be opened before the games; they're linked when the games arrive.
+        const link = games ? linkVideos(read.records, games.records) : null;
+        setVideos({ records: link ? link.videos : read.records, dirty: false });
+        setNotes(describe([...read.skipped, ...(link?.skipped ?? [])]));
+      }
+      resetView();
     } catch (error) {
       setNotice(error instanceof CatalogFormatError ? error.message : `Couldn't read ${file.name}.`);
     }
   }
 
-  function onFileChosen(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    // Clear the input, so choosing the same file again still fires a change.
-    event.target.value = "";
-    if (file) void openFile(file);
+  function onFileChosen(kind: Tab) {
+    return (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      // Clear the input, so choosing the same file again still fires a change.
+      event.target.value = "";
+      if (file) void openFile(kind, file);
+    };
   }
 
   function startNew() {
-    if (!mayReplace()) return;
-    // A new catalog counts as unsaved: it isn't a file yet.
-    show({ fileName: CATALOG_FILE_NAME, records: [], skipped: [], dirty: true });
+    if (!mayReplace(games) || !mayReplace(videos)) return;
+    // A new catalog counts as unsaved: it isn't on disk yet.
+    setGames({ records: [], dirty: true });
+    setVideos({ records: [], dirty: true });
+    setNotes([]);
+    setTab("games");
+    resetView();
   }
 
-  /** Checks a row and, when it's valid, puts it in the catalog. Returns the
-   * field errors to show, or null once saved. */
-  function save(draft: Draft, replacing: string | null): FieldErrors | null {
-    if (!session) return null;
-    const checked = checkRecord(draft);
-    if (!checked.ok) return checked.errors;
-    const put = putRecord(session.records, checked.record, replacing);
-    if (!put.ok) return put.errors;
-    setSession({ ...session, records: put.records, dirty: true });
+  // ---------- Games ----------
+
+  /** Saves a game: a new one gets its id from its title. Returns the error to show, or null once saved. */
+  function saveGame(title: string, replacing: string | null): string | null {
+    if (!games) return null;
+    const checked = checkGameTitle(title);
+    if (!checked.ok) return checked.error;
+    const id = replacing ?? newGameId(checked.title, new Set(games.records.map((game) => game.id)));
+    const put = putGame(games.records, { id, title: checked.title }, replacing);
+    if (!put.ok) return put.error;
+    setGames({ records: put.games, dirty: true });
     setEditing(null);
     return null;
   }
 
-  function remove(record: VideoRecord) {
-    if (!session) return;
-    if (!window.confirm(`Delete “${record.title}” from the catalog?`)) return;
-    setSession({ ...session, records: removeRecord(session.records, record.id), dirty: true });
-    if (editing === record.id) setEditing(null);
+  function deleteGame(game: GameRecord) {
+    if (!games || !videos) return;
+    const affected = videosOfGame(videos.records, game.id);
+    const orphaned = affected.filter((video) => video.gameIds.length === 1).length;
+    let message = `Delete “${game.title}”?`;
+    if (affected.length > 0) {
+      message += ` ${plural(affected.length, "video")} ${affected.length === 1 ? "is" : "are"} on it.`;
+      message += orphaned > 0
+        ? ` ${plural(orphaned, "video")} with no other game ${orphaned === 1 ? "is" : "are"} deleted too.`
+        : " They stay, without this game.";
+    }
+    if (!window.confirm(message)) return;
+    const next = removeGame(games.records, videos.records, game.id);
+    setGames({ records: next.games, dirty: true });
+    setVideos({ records: next.videos, dirty: true });
+    if (next.removedVideos.length > 0) {
+      setNotes(next.removedVideos.map((video) => `Deleted with “${game.title}”: ${video.title}`));
+    }
+    if (editing === game.id) setEditing(null);
   }
 
-  function startAdding() {
-    setQuery("");
-    setEditing(NEW);
+  // ---------- Videos ----------
+
+  function saveVideo(draft: VideoDraft, replacing: string | null): FieldErrors<VideoField> | null {
+    if (!games || !videos) return null;
+    const checked = checkVideo(draft, games.records);
+    if (!checked.ok) return checked.errors;
+    const put = putVideo(videos.records, checked.record, replacing);
+    if (!put.ok) return put.errors;
+    setVideos({ records: put.videos, dirty: true });
+    setEditing(null);
+    return null;
   }
 
-  function exportFile() {
-    if (!session) return;
-    const blob = new Blob([toCatalogCsv(session.records)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = CATALOG_FILE_NAME;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    // Revoked a moment later, so the download has started first.
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setSession({ ...session, dirty: false });
+  function deleteVideo(video: VideoRecord) {
+    if (!videos) return;
+    if (!window.confirm(`Delete “${video.title}” from the catalog?`)) return;
+    setVideos({ records: removeVideo(videos.records, video.id), dirty: true });
+    if (editing === video.id) setEditing(null);
   }
 
-  const status = session
-    ? `${session.fileName} · ${plural(records.length, "video")} in ${plural(gameCount, "game")}`
-    : "";
+  // ---------- Export ----------
+
+  function exportFile(kind: Tab) {
+    if (kind === "games" && games) {
+      download(GAMES_FILE, toGamesFile(games.records));
+      setGames({ records: games.records, dirty: false });
+    } else if (kind === "videos" && videos) {
+      download(VIDEOS_FILE, toVideosFile(videos.records));
+      setVideos({ records: videos.records, dirty: false });
+    }
+  }
+
+  // ---------- Render ----------
+
+  const summary = [
+    games && `${GAMES_FILE} · ${plural(gameList.length, "game")}`,
+    videos && `${VIDEOS_FILE} · ${plural(videoList.length, "video")}`,
+  ].filter(Boolean).join(" · ");
 
   return (
     <div className="studio">
@@ -174,14 +253,16 @@ export function StudioApp() {
         <div className="studio-title">
           <h1>Catalog editor</h1>
           <p className="studio-status" role="status">
-            {status}
+            {summary}
             {dirty && <span className="studio-dirty"> · unsaved changes</span>}
           </p>
         </div>
-        {session && (
+        {(games || videos) && (
           <div className="studio-actions">
-            <OpenButton label="Open another file" onFile={onFileChosen} />
-            <button className="btn" type="button" onClick={exportFile}>Export {CATALOG_FILE_NAME}</button>
+            {ready && <OpenButton label={`Open ${GAMES_FILE}`} onFile={onFileChosen("games")} />}
+            {ready && <OpenButton label={`Open ${VIDEOS_FILE}`} onFile={onFileChosen("videos")} />}
+            {games && <button className="btn" type="button" onClick={() => exportFile("games")}>Export {GAMES_FILE}</button>}
+            {videos && <button className="btn" type="button" onClick={() => exportFile("videos")}>Export {VIDEOS_FILE}</button>}
           </div>
         )}
       </header>
@@ -189,128 +270,204 @@ export function StudioApp() {
       <main className="studio-main">
         {notice && <p className="studio-notice" role="alert">{notice}</p>}
 
-        {session ? (
-          <section aria-label="Videos">
-            {session.skipped.length > 0 && (
-              <details className="studio-notice studio-skipped">
-                <summary>{plural(session.skipped.length, "row")} skipped when the file was opened</summary>
-                <p>Skipped rows aren't in the editor, so the export leaves them out. Fix them in the original file if they matter.</p>
-                <ul>
-                  {session.skipped.map((skip) => (
-                    <li key={skip.row}>Row {skip.row}: {skip.reason}</li>
-                  ))}
-                </ul>
-              </details>
-            )}
+        {notes.length > 0 && (
+          <details className="studio-notice studio-skipped">
+            <summary>{plural(notes.length, "row")} left out when the files were opened</summary>
+            <p>Rows left out aren't in the editor, so the export leaves them out too. Fix them in the original files if they matter.</p>
+            <ul>
+              {notes.map((note, index) => <li key={index}>{note}</li>)}
+            </ul>
+          </details>
+        )}
 
-            <div className="studio-toolbar">
-              <div className="studio-search field">
-                <label htmlFor="studio-search" className="field-label">Search</label>
-                <input
-                  id="studio-search"
-                  type="search"
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setPage(1);
-                  }}
-                  placeholder="Title, game or video ID"
-                  autoComplete="off"
-                />
-              </div>
-              <button className="btn" type="button" disabled={editing !== null} onClick={startAdding}>Add video</button>
+        {ready ? (
+          <>
+            <div className="studio-tabs" role="tablist" aria-label="Catalog">
+              <button
+                id="tab-games"
+                type="button"
+                role="tab"
+                aria-selected={tab === "games"}
+                aria-controls="studio-panel"
+                className={tab === "games" ? "studio-tab studio-tab-active" : "studio-tab"}
+                onClick={() => switchTab("games")}
+              >
+                Games <span className="studio-count">{gameList.length}</span>
+              </button>
+              <button
+                id="tab-videos"
+                type="button"
+                role="tab"
+                aria-selected={tab === "videos"}
+                aria-controls="studio-panel"
+                className={tab === "videos" ? "studio-tab studio-tab-active" : "studio-tab"}
+                onClick={() => switchTab("videos")}
+              >
+                Videos <span className="studio-count">{videoList.length}</span>
+              </button>
             </div>
 
-            {editing === NEW && (
-              <RecordForm
-                initial={EMPTY_DRAFT}
-                suggestions={suggestions}
-                onSave={(draft) => save(draft, null)}
-                onCancel={() => setEditing(null)}
-              />
-            )}
+            <section id="studio-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} aria-label={tab === "games" ? "Games" : "Videos"}>
+              <div className="studio-toolbar">
+                <div className="studio-search field">
+                  <label htmlFor="studio-search" className="field-label">Search</label>
+                  <input
+                    id="studio-search"
+                    type="search"
+                    value={query}
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                      setPage(1);
+                    }}
+                    placeholder={tab === "games" ? "Title or game ID" : "Title, game or video ID"}
+                    autoComplete="off"
+                  />
+                </div>
+                <button className="btn" type="button" disabled={editing !== null} onClick={() => setEditing(NEW)}>
+                  {tab === "games" ? "Add game" : "Add video"}
+                </button>
+              </div>
 
-            {visible.length === 0 ? (
-              <p className="studio-empty">
-                {records.length === 0 ? "No videos yet. Add one, or export the empty catalog." : "No videos match the search."}
-              </p>
-            ) : (
-              <>
-                {pageCount > 1 && (
-                  <nav className="studio-pager" aria-label="Pages of videos">
-                    <button className="btn btn-secondary btn-small" type="button" disabled={current === 1} onClick={() => setPage(current - 1)}>
-                      Previous
-                    </button>
-                    <span>Page {current} of {pageCount}</span>
-                    <button className="btn btn-secondary btn-small" type="button" disabled={current === pageCount} onClick={() => setPage(current + 1)}>
-                      Next
-                    </button>
-                  </nav>
-                )}
-              <ul className="records">
-                {visible.map((record) => (
-                  <li key={record.id} className={editing === record.id ? undefined : "record"}>
-                    {editing === record.id ? (
-                      <RecordForm
-                        initial={{ id: record.id, title: record.title, publishedAt: record.publishedAt, gameTitle: record.gameTitle }}
-                        suggestions={suggestions}
-                        onSave={(draft) => save(draft, record.id)}
-                        onCancel={() => setEditing(null)}
-                      />
-                    ) : (
-                      <>
-                        <div className="record-info">
-                          <p className="record-title">{record.title}</p>
-                          <p className="record-meta">
-                            <time dateTime={record.publishedAt}>{record.publishedAt}</time>
-                            <span>{record.gameTitle || "No game"}</span>
-                            <span>{record.id}</span>
-                          </p>
-                        </div>
-                        <div className="studio-actions">
-                          <button
-                            className="btn btn-secondary btn-small"
-                            type="button"
-                            disabled={editing !== null}
-                            aria-label={`Edit ${record.title}`}
-                            onClick={() => setEditing(record.id)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn btn-secondary btn-small"
-                            type="button"
-                            disabled={editing !== null}
-                            aria-label={`Delete ${record.title}`}
-                            onClick={() => remove(record)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              </>
-            )}
-          </section>
+              {editing === NEW && tab === "games" && (
+                <GameForm initialTitle="" id={null} onSave={(title) => saveGame(title, null)} onCancel={() => setEditing(null)} />
+              )}
+              {editing === NEW && tab === "videos" && games && (
+                <VideoForm
+                  initial={{ id: "", title: "", publishedAt: "", gameIds: [] }}
+                  games={gameList}
+                  onSave={(draft) => saveVideo(draft, null)}
+                  onCancel={() => setEditing(null)}
+                />
+              )}
+
+              {shown.items.length === 0 ? (
+                <p className="studio-empty">
+                  {tab === "games"
+                    ? (gameList.length === 0 ? "No games yet. Add one, or export the empty file." : "No games match the search.")
+                    : (videoList.length === 0 ? "No videos yet. Add one, or export the empty file." : "No videos match the search.")}
+                </p>
+              ) : (
+                <>
+                  <Pager page={shown.page} pages={shown.pages} onPage={setPage} />
+                  <ul className="records">
+                    {tab === "games"
+                      ? (shown.items as GameRecord[]).map((game) => (
+                        <li key={game.id} className={editing === game.id ? undefined : "record"}>
+                          {editing === game.id ? (
+                            <GameForm
+                              initialTitle={game.title}
+                              id={game.id}
+                              onSave={(title) => saveGame(title, game.id)}
+                              onCancel={() => setEditing(null)}
+                            />
+                          ) : (
+                            <>
+                              <div className="record-info">
+                                <p className="record-title">{game.title}</p>
+                                <p className="record-meta">
+                                  <span>{plural(videoCounts.get(game.id) ?? 0, "video")}</span>
+                                  <span>{game.id}</span>
+                                </p>
+                              </div>
+                              <RowButtons label={game.title} disabled={editing !== null} onEdit={() => setEditing(game.id)} onDelete={() => deleteGame(game)} />
+                            </>
+                          )}
+                        </li>
+                      ))
+                      : (shown.items as VideoRecord[]).map((video) => (
+                        <li key={video.id} className={editing === video.id ? undefined : "record"}>
+                          {editing === video.id && games ? (
+                            <VideoForm
+                              initial={{ id: video.id, title: video.title, publishedAt: video.publishedAt, gameIds: video.gameIds }}
+                              games={gameList}
+                              onSave={(draft) => saveVideo(draft, video.id)}
+                              onCancel={() => setEditing(null)}
+                            />
+                          ) : (
+                            <>
+                              <div className="record-info">
+                                <p className="record-title">{video.title}</p>
+                                <p className="record-meta">
+                                  <time dateTime={video.publishedAt}>{video.publishedAt}</time>
+                                  <span>{video.gameIds.map((id) => gameTitles.get(id) ?? id).join(", ") || "No game"}</span>
+                                  <span>{video.id}</span>
+                                </p>
+                              </div>
+                              <RowButtons label={video.title} disabled={editing !== null} onEdit={() => setEditing(video.id)} onDelete={() => deleteVideo(video)} />
+                            </>
+                          )}
+                        </li>
+                      ))}
+                  </ul>
+                </>
+              )}
+            </section>
+          </>
         ) : (
           <div className="welcome">
-            <h2>Edit a catalog</h2>
+            <h2>Edit the catalog</h2>
             <p>
-              Open the site&rsquo;s {CATALOG_FILE_NAME} to add, change or remove videos. When you&rsquo;re done,
-              export the file and put it where the site reads its catalog.
+              The site reads two files: <strong>{GAMES_FILE}</strong>, the games, and <strong>{VIDEOS_FILE}</strong>, the
+              videos and the games each one is on. Open both to edit them, or start a new catalog.
             </p>
-            <p>Nothing is uploaded. The file stays in this page until you export it.</p>
+            <p>Nothing is uploaded. The files stay in this page until you export them.</p>
             <div className="studio-actions">
-              <OpenButton label="Open a CSV file" primary onFile={onFileChosen} />
+              <OpenButton label={`Open ${GAMES_FILE}`} primary={!games} onFile={onFileChosen("games")} />
+              <OpenButton label={`Open ${VIDEOS_FILE}`} primary={!!games && !videos} onFile={onFileChosen("videos")} />
               <button className="btn btn-secondary" type="button" onClick={startNew}>Start a new catalog</button>
             </div>
+            {games && !videos && <p className="field-hint">{GAMES_FILE} is open. Open {VIDEOS_FILE} to continue.</p>}
+            {videos && !games && <p className="field-hint">{VIDEOS_FILE} is open. Open {GAMES_FILE} to continue.</p>}
           </div>
         )}
       </main>
     </div>
+  );
+}
+
+/** Saves a file to the user's computer. */
+function download(name: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  // Revoked a moment later, so the download has started first.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** The skipped rows as lines for the notice. */
+function describe(skipped: readonly SkippedRow[]): string[] {
+  return skipped.map((skip) => `${skip.file}${skip.row === null ? "" : ` row ${skip.row}`}: ${skip.reason}`);
+}
+
+function RowButtons({ label, disabled, onEdit, onDelete }: { label: string; disabled: boolean; onEdit: () => void; onDelete: () => void }) {
+  return (
+    <div className="studio-actions">
+      <button className="btn btn-secondary btn-small" type="button" disabled={disabled} aria-label={`Edit ${label}`} onClick={onEdit}>
+        Edit
+      </button>
+      <button className="btn btn-secondary btn-small" type="button" disabled={disabled} aria-label={`Delete ${label}`} onClick={onDelete}>
+        Delete
+      </button>
+    </div>
+  );
+}
+
+function Pager({ page, pages, onPage }: { page: number; pages: number; onPage: (page: number) => void }) {
+  if (pages <= 1) return null;
+  return (
+    <nav className="studio-pager" aria-label="Pages">
+      <button className="btn btn-secondary btn-small" type="button" disabled={page === 1} onClick={() => onPage(page - 1)}>
+        Previous
+      </button>
+      <span>Page {page} of {pages}</span>
+      <button className="btn btn-secondary btn-small" type="button" disabled={page === pages} onClick={() => onPage(page + 1)}>
+        Next
+      </button>
+    </nav>
   );
 }
 
@@ -319,7 +476,7 @@ export function StudioApp() {
 function OpenButton({ label, primary, onFile }: { label: string; primary?: boolean | undefined; onFile: (event: ChangeEvent<HTMLInputElement>) => void }) {
   return (
     <label className={primary ? "btn file-button" : "btn btn-secondary file-button"}>
-      <input type="file" accept=".csv,text/csv" className="visually-hidden" onChange={onFile} />
+      <input type="file" accept=".txt,.csv,text/plain,text/csv" className="visually-hidden" onChange={onFile} />
       {label}
     </label>
   );

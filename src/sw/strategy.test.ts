@@ -12,7 +12,7 @@ describe("strategyFor", () => {
 
   it("serves thumbnails cache-first and everything else network-first", () => {
     expect(strategyFor(get("/assets/thumbnails/tW8maoQNthw.webp"), origin)).toEqual({ kind: "cache-first" });
-    expect(strategyFor(get("/assets/api/videos.csv"), origin)).toEqual({ kind: "network-first" });
+    expect(strategyFor(get("/assets/api/Videos.txt"), origin)).toEqual({ kind: "network-first" });
   });
 
   it("leaves the catalog editor to the network, rather than the app shell", () => {

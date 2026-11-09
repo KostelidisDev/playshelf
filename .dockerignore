@@ -23,7 +23,6 @@ public/assets/thumbnails
 # Used by the image itself
 !site.conf
 !docker-entrypoint.sh
-!sync-thumbnails.sh
 
 # Secrets and OS files, even inside the trees that are included above
 **/.env

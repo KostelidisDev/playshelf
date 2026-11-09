@@ -3,7 +3,7 @@ name: Standalone release
 # Builds the site for a managed Apache or shared host (no container) and
 # attaches one zip per site to the GitHub release: the default PlayShelf
 # site and Kostelidis.dev. Each zip is a document root, ready to upload; the
-# webmaster adds videos.csv and the thumbnails (see "Standalone (shared
+# webmaster adds Games.txt, Videos.txt and the thumbnails (see "Standalone (shared
 # hosting)" in README.md). A manual run builds the zips as a workflow
 # artifact instead, without a release.
 

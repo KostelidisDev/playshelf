@@ -8,7 +8,7 @@ import type { HistoryRouter } from "../lib/history.ts";
 import { paginate } from "../lib/pagination.ts";
 import { homeUrl, parseRoute, type RouteState } from "../lib/routes.ts";
 import { plural } from "../lib/text.ts";
-import type { GameCatalog } from "../lib/videos.ts";
+import type { Catalog } from "../lib/catalog.ts";
 import { AppBar, BRAND } from "./AppBar.tsx";
 import { Footer } from "./Footer.tsx";
 import { GameView } from "./GameView.tsx";
@@ -29,7 +29,7 @@ export function App({ router, loadCatalog }: Props) {
   const route = useMemo(() => parseRoute(location.search), [location.search]);
   const [catalogState, retry] = useCatalog(loadCatalog);
   const catalog = catalogState.status === "ready" ? catalogState.catalog : null;
-  const view = route.gameKey === null ? "home" : "game";
+  const view = route.gameId === null ? "home" : "game";
   useScrolledFlag();
 
   // ---------- Navigation ----------
@@ -79,7 +79,7 @@ export function App({ router, loadCatalog }: Props) {
     () => (catalog && view === "home" ? paginate(catalog.filter(route.query, route.letter), route.page) : null),
     [catalog, view, route.query, route.letter, route.page],
   );
-  const game = catalog && route.gameKey !== null ? catalog.get(route.gameKey) : null;
+  const game = catalog && route.gameId !== null ? catalog.get(route.gameId) : null;
   const status = statusText(catalogState.status, catalog, homePage?.total ?? 0, view, game);
   const title = view === "home" ? BRAND : `${game ? game.title : "Game not found"} — ${BRAND}`;
 
@@ -123,7 +123,7 @@ export function App({ router, loadCatalog }: Props) {
 
 function statusText(
   loading: "loading" | "ready" | "error",
-  catalog: GameCatalog | null,
+  catalog: Catalog | null,
   shown: number,
   view: "home" | "game",
   game: { videos: readonly unknown[] } | null,

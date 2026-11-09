@@ -1,8 +1,7 @@
 #!/bin/sh
 # The container's entrypoint. It escapes SITE_NAME and SITE_DESCRIPTION for
 # HTML and for JSON (Apache can't), for site.conf to put into index.html and
-# the web manifest as they're served. Then it starts the thumbnail sync in
-# the background, unless THUMBNAILS_SYNC=false, and runs the given command
+# the web manifest as they're served. Then it runs the given command
 # (httpd-foreground by default).
 #
 # Both forms also escape "|" (the Substitute delimiter) and "\", so a value
@@ -40,9 +39,5 @@ SITE_NAME_JSON=$(json "$name")
 SITE_DESCRIPTION_HTML=$(html "$description")
 SITE_DESCRIPTION_JSON=$(json "$description")
 export SITE_NAME_HTML SITE_NAME_JSON SITE_DESCRIPTION_HTML SITE_DESCRIPTION_JSON
-
-if [ "${THUMBNAILS_SYNC:-true}" != false ]; then
-  sync-thumbnails.sh &
-fi
 
 exec "$@"

@@ -23,9 +23,6 @@ RUN APP_VERSION="${BUILD_VERSION:-"$(TZ="$BUILD_TZ" date +'v%Y.%m.%d-build%H%M%S
 
 FROM httpd:2.4.69-alpine3.24
 
-# cwebp, used by sync-thumbnails.sh.
-RUN apk add --no-cache libwebp-tools
-
 # - Turn on compression, cache headers, placeholder substitution (the
 #   site's name and description) and rewrites (the demo catalog)
 # - Listen on 8080: an unprivileged user can't bind ports below 1024
@@ -49,27 +46,16 @@ RUN sed -i \
 COPY site.conf conf/extra/site.conf
 COPY --link --from=build /app/dist/ htdocs/
 
-# Mount points for the catalog and the thumbnails, which aren't part of the
-# image (docker-compose.yml). The thumbnails directory belongs to www-data,
-# so the sync can write to it, and so does a new Docker volume created from
-# it.
-RUN mkdir -p htdocs/assets/api htdocs/assets/thumbnails \
-    && chown www-data:www-data htdocs/assets/thumbnails
+# Mount point for the catalog, which isn't part of the image
+# (docker-compose.yml). Nothing in the container writes to it.
+RUN mkdir -p htdocs/assets/api
 
 # The site's name (page title, app bar, installed app) and description
 # (search results, link previews, installed app), read when the container
 # starts, so changing them needs no rebuild (docker run -e SITE_NAME=...).
 ENV SITE_NAME=PlayShelf \
     SITE_DESCRIPTION="A hand-picked collection of YouTube videos, from any creator, grouped by game."
-# The thumbnail sync (sync-thumbnails.sh): on or off, how often it checks
-# videos.csv again (seconds; 0 checks only at start), the WebP width and
-# quality, and how many downloads run at once.
-ENV THUMBNAILS_SYNC=true \
-    THUMBNAILS_SYNC_INTERVAL=3600 \
-    THUMBNAILS_WIDTH=640 \
-    THUMBNAILS_QUALITY=80 \
-    THUMBNAILS_JOBS=4
-COPY --chmod=755 docker-entrypoint.sh sync-thumbnails.sh /usr/local/bin/
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/
 
 # www-data (uid 82) comes with Alpine. As a non-root user, the container
 # needs no capabilities at all, and Apache skips its usual switch from root.

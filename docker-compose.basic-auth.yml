@@ -13,8 +13,6 @@ services:
     container_name: ${INSTANCE_NAME:-playshelf}
     restart: unless-stopped
     read_only: true
-    # An init process, to reap the thumbnail sync's finished processes.
-    init: true
     tmpfs:
       - /tmp
     cap_drop:
@@ -29,19 +27,9 @@ services:
       # The site's description (search results, link previews, installed
       # app). Also read when the container starts.
       SITE_DESCRIPTION: "${SITE_DESCRIPTION:-A hand-picked collection of YouTube videos, from any creator, grouped by game.}"
-      # Downloads the missing thumbnails of the videos in videos.csv as WebP,
-      # in the background, checking again every THUMBNAILS_SYNC_INTERVAL
-      # seconds.
-      THUMBNAILS_SYNC: "${THUMBNAILS_SYNC:-true}"
-      THUMBNAILS_SYNC_INTERVAL: "${THUMBNAILS_SYNC_INTERVAL:-3600}"
-      THUMBNAILS_WIDTH: "${THUMBNAILS_WIDTH:-640}"
-      THUMBNAILS_QUALITY: "${THUMBNAILS_QUALITY:-80}"
-      THUMBNAILS_JOBS: "${THUMBNAILS_JOBS:-4}"
-    # The catalog (videos.csv, read-only) and the thumbnails (written by the
-    # sync) live outside the image; the volumes are defined at the end. With
-    # nocopy, Docker never copies the image's empty directory into the data
-    # mount. The thumbnails volume is created from the image's directory, so
-    # it belongs to www-data from the start.
+    # The catalog (Games.txt and Videos.txt, read-only) lives outside the
+    # image; the volume is defined at the end. With nocopy, Docker never
+    # copies the image's empty directory into the data mount.
     volumes:
       - type: volume
         source: data
@@ -49,9 +37,6 @@ services:
         read_only: true
         volume:
           nocopy: true
-      - type: volume
-        source: thumbnails
-        target: /usr/local/apache2/htdocs/assets/thumbnails
     networks:
       - playshelf
     logging: *default-logging
@@ -98,13 +83,11 @@ networks:
         - subnet: ${PLAYSHELF_NETWORK_SUBNET_V4:-10.100.0.0/24}
         - subnet: ${PLAYSHELF_NETWORK_SUBNET_V6:-fd00:100::/64}
 
-# data holds videos.csv: a bind mount, an NFS export or a CIFS/SMB share, set
+# data holds Games.txt and Videos.txt: a bind mount, an NFS export or a CIFS/SMB share, set
 # by the three PLAYSHELF_DATA_VOLUME_* variables (examples in .env.example).
 # The container runs as uid/gid 82 (www-data), which must be able to read
 # it. Docker keeps a volume's settings from when it was created: after
 # changing them, `docker compose down` and `docker volume rm` the volume.
-# thumbnails is a plain Docker volume; if it's removed, the sync downloads
-# the thumbnails again.
 volumes:
   data:
     name: ${INSTANCE_NAME:-playshelf}-data
@@ -113,5 +96,3 @@ volumes:
       type: "${PLAYSHELF_DATA_VOLUME_TYPE:-none}"
       o: "${PLAYSHELF_DATA_VOLUME_OPTIONS:-bind}"
       device: "${PLAYSHELF_DATA_VOLUME_DEVICE:?PLAYSHELF_DATA_VOLUME_DEVICE is required}"
-  thumbnails:
-    name: ${INSTANCE_NAME:-playshelf}-thumbnails

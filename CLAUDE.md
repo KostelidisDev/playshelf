@@ -26,12 +26,12 @@ also check it in `npm run preview` or a built image.
 
 ## Layout
 
-- `src/lib/`: pure logic (CSV parsing, routes, pagination, text, videos). No
-  DOM, no network. Keep it that way, so it stays unit-testable.
+- `src/lib/`: pure logic (catalog and CSV parsing, routes, pagination, text).
+  No DOM, no network. Keep it that way, so it stays unit-testable.
 - `src/components/`, `src/hooks/`: React UI.
 - `studio/`, `src/studio/`: the catalog editor at `/studio/`, a second page
   of the same build (its own HTML entry, no service worker). Its rules are
-  in `src/lib/studio.ts`, which follows the desktop studio's.
+  in `src/lib/studio.ts`, and it shares the file rules in `src/lib/catalog.ts`.
 - `src/ui/`: browser helpers (brand, tint, version, SW registration).
 - `src/sw/`: the service worker, built separately (`vite.sw.config.ts`).
   `strategy.ts` holds its pure, tested parts.
@@ -40,8 +40,10 @@ also check it in `npm run preview` or a built image.
   into a site for a shared host (settings filled in, an `.htaccess` made
   from site.conf). All tested in `build/build.test.ts`.
 - `site.conf`: Apache config (headers, CSP, caching, site settings, demo
-  catalog rewrite). `docker-entrypoint.sh` and `sync-thumbnails.sh` run in
-  the container.
+  catalog rewrite). `docker-entrypoint.sh` runs in the container.
+  `preload_media.py` runs on the maintainer's machine: it
+  fetches game covers from Twitch and video thumbnails from YouTube, and is
+  never copied into the image.
 
 Tests sit next to the code they cover (`*.test.ts[x]`); fixtures and setup
 are in `src/test/`.
@@ -58,15 +60,19 @@ are in `src/test/`.
   serve time (Apache in the container, `build/site.ts` locally), escaped by
   `docker-entrypoint.sh`. Never bake a name or description into the build;
   only the standalone sites (`build/standalone.ts`) fill them in, after it.
-- **Catalog**: one CSV, `assets/api/videos.csv` (format in README.md). It
-  must stay in sync with the manager's export
-  (`manager/creator_manager/storage/site_csv.py`), and so must the editor's
-  writer (`src/lib/studio.ts`). Real data is never
+- **Catalog**: two CSVs, `assets/api/Games.txt` (game_id, title) and
+  `assets/api/Videos.txt` (video_id, title, published_at, game_ids; the game
+  ids separated by `;`), format in README.md. `src/lib/catalog.ts` reads and
+  writes both, for the site and the editor alike, so a change to the format
+  goes there first. Real data is never
   committed (`public/assets/api/` and `public/assets/thumbnails/` are
-  git-ignored); `public/assets/demo/videos.csv` is the demo that's served
-  when the catalog volume has none.
+  git-ignored); `public/assets/demo/` holds the demo pair served while the
+  catalog volume has neither file.
+- **Game ids**: 1-64 letters, digits, `-` or `_`, as with video ids. They
+  go into URLs and file names (`assets/thumbnails/games/<id>.webp`), so
+  `catalog.ts` and `preload_media.py` both check them.
 - **Video ids**: only 11-character YouTube ids (`[A-Za-z0-9_-]{11}`) are
-  used, both in the site and in `sync-thumbnails.sh`, so a crafted row can't
+  used, both in the site and in `preload_media.py`, so a crafted row can't
   point a request or a file path elsewhere.
 - **Offline**: the service worker precaches the app shell listed by
   `build/shell.ts` (the hashed app build plus its `ALWAYS` list); a new
@@ -74,8 +80,8 @@ are in `src/test/`.
   Thumbnails are cached as they're viewed, not precached.
 - **Container**: read-only root filesystem, no capabilities, runs as
   www-data (uid 82) on port 8080. Site files stay root-owned. The catalog is
-  a read-only custom mount (bind/NFS/CIFS); thumbnails are a Docker-managed
-  volume, the only place the container writes (plus `/tmp`).
+  a read-only custom mount (bind/NFS/CIFS). The container writes nothing but
+  `/tmp`.
 
 ## Conventions
 

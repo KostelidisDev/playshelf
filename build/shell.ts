@@ -13,7 +13,8 @@ export const APP_ASSETS_DIR = "assets/app";
 const ALWAYS = [
   "./",
   "manifest.webmanifest",
-  "assets/api/videos.csv",
+  "assets/api/Games.txt",
+  "assets/api/Videos.txt",
   "assets/icons/icon.svg",
   "assets/icons/icon-192.png",
   "assets/icons/apple-touch-icon.png",

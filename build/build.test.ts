@@ -27,7 +27,7 @@ describe("shellFiles", () => {
     dir = (mkdirSync(TMP, { recursive: true }), mkdtempSync(join(TMP, "shell-")));
     mkdirSync(join(dir, "assets/app"), { recursive: true });
     for (const file of ["index-abc.js", "index-abc.js.map", "index-def.css"]) writeFileSync(join(dir, "assets/app", file), "");
-    expect(shellFiles(dir)).toEqual(expect.arrayContaining(["./", "assets/api/videos.csv", "assets/app/index-abc.js", "assets/app/index-def.css"]));
+    expect(shellFiles(dir)).toEqual(expect.arrayContaining(["./", "assets/api/Games.txt", "assets/api/Videos.txt", "assets/app/index-abc.js", "assets/app/index-def.css"]));
     expect(shellFiles(dir)).not.toContain("assets/app/index-abc.js.map");
   });
 
@@ -79,7 +79,8 @@ describe("standalone build", () => {
     expect(text).toContain(`Header always set Content-Security-Policy "${sitePolicy(conf)}"`);
     expect(text).toContain('Header always set X-Frame-Options "DENY"');
     expect(text).toContain("ExpiresByType text/html");
-    expect(text).toContain("RewriteRule ^assets/api/videos\\.csv$ assets/demo/videos.csv [L]");
+    expect(text).toContain("RewriteCond %{DOCUMENT_ROOT}/assets/api/Games.txt !-f");
+    expect(text).toContain("RewriteRule ^assets/api/(Games|Videos)\\.txt$ assets/demo/$1.txt [L]");
     expect(text).toMatch(/AddOutputFilterByType DEFLATE text\/html .* image\/svg\+xml\n/);
   });
 
@@ -94,7 +95,7 @@ describe("standalone build", () => {
     for (const sub of ["assets/api", "assets/thumbnails", "assets/demo", "assets/app"]) mkdirSync(join(dist, sub), { recursive: true });
     writeFileSync(join(dist, "index.html"), '<title>__SITE_NAME__</title><meta content="__SITE_DESCRIPTION__">');
     writeFileSync(join(dist, "manifest.webmanifest"), '{"name":"__SITE_NAME__","description":"__SITE_DESCRIPTION__"}');
-    for (const file of ["assets/api/videos.csv", "assets/api/.gitkeep", "assets/thumbnails/abcdefghijk.webp", "assets/demo/videos.csv", "assets/app/index-abc.js", ".DS_Store"]) {
+    for (const file of ["assets/api/Games.txt", "assets/api/Videos.txt", "assets/api/.gitkeep", "assets/thumbnails/abcdefghijk.webp", "assets/demo/Videos.txt", "assets/app/index-abc.js", ".DS_Store"]) {
       writeFileSync(join(dist, file), "");
     }
 
@@ -103,10 +104,10 @@ describe("standalone build", () => {
     expect(readFileSync(join(out, "index.html"), "utf8")).toBe('<title>A &amp; B</title><meta content="Say &quot;hi&quot;">');
     expect(JSON.parse(readFileSync(join(out, "manifest.webmanifest"), "utf8"))).toEqual({ name: "A & B", description: 'Say "hi"' });
     expect(readFileSync(join(out, ".htaccess"), "utf8")).toContain("Content-Security-Policy");
-    expect(existsSync(join(out, "assets/demo/videos.csv"))).toBe(true);
+    expect(existsSync(join(out, "assets/demo/Videos.txt"))).toBe(true);
     expect(existsSync(join(out, "assets/app/index-abc.js"))).toBe(true);
     expect(existsSync(join(out, "assets/api"))).toBe(true);
-    for (const file of ["assets/api/videos.csv", "assets/api/.gitkeep", "assets/thumbnails/abcdefghijk.webp", ".DS_Store"]) {
+    for (const file of ["assets/api/Games.txt", "assets/api/Videos.txt", "assets/api/.gitkeep", "assets/thumbnails/abcdefghijk.webp", ".DS_Store"]) {
       expect(existsSync(join(out, file))).toBe(false);
     }
   });

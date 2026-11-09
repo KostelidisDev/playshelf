@@ -1,26 +1,27 @@
 import { memo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { remoteThumbnailUrl, thumbnailUrl, type Video } from "../lib/videos.ts";
 import { tints } from "../ui/tint.ts";
 import { AppLink } from "./AppLink.tsx";
 
 interface Props {
   href: string;
-  /** The video whose thumbnail the card shows. */
-  video: Video;
   title: string;
   meta: ReactNode;
   variant: "game" | "video";
+  /** Image sources, in the order to try them. A game's cover comes first,
+   * then its newest video's thumbnails. With none left to load, the card
+   * shows a blank picture. */
+  images: readonly string[];
   /** Opens in a new tab (YouTube); otherwise plain clicks go to `onNavigate`. */
   external?: boolean;
   onNavigate?: (href: string) => void;
 }
 
-/** A card that links somewhere: thumbnail, title and a meta line. */
-export const Card = memo(function Card({ href, video, title, meta, variant, external = false, onNavigate }: Props) {
+/** A card that links somewhere: picture, title and a meta line. */
+export const Card = memo(function Card({ href, title, meta, variant, images, external = false, onNavigate }: Props) {
   const ref = useRef<HTMLAnchorElement>(null);
   const body = (
     <>
-      <Thumbnail video={video} card={ref} />
+      <Picture images={images} card={ref} />
       <div className="card-body">
         <p className="card-title">{title}</p>
         <div className="card-meta">{meta}</div>
@@ -38,16 +39,21 @@ export const Card = memo(function Card({ href, video, title, meta, variant, exte
   return <AppLink ref={ref} className={className} href={href} onNavigate={onNavigate}>{body}</AppLink>;
 });
 
-/** The site's WebP thumbnail (downloaded by sync-thumbnails.sh), or
- * YouTube's own until that exists. The area shimmers (.loading) until an
- * image loads or both fail. */
-function Thumbnail({ video, card }: { video: Video; card: RefObject<HTMLAnchorElement | null> }) {
-  const [src, setSrc] = useState(() => thumbnailUrl(video));
-  const [settled, setSettled] = useState(false);
-  const remote = remoteThumbnailUrl(video);
+/** The first of `images` that loads. The area shimmers (.loading) until an
+ * image loads or every source has failed. */
+function Picture({ images, card }: { images: readonly string[]; card: RefObject<HTMLAnchorElement | null> }) {
+  // Keyed on the sources, so a card whose sources change starts again.
+  return <Attempt key={images.join("|")} images={images} card={card} />;
+}
 
+function Attempt({ images, card }: { images: readonly string[]; card: RefObject<HTMLAnchorElement | null> }) {
+  const [index, setIndex] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const src = images[index];
+
+  if (src === undefined) return <div className="card-thumb" />;
   return (
-    <div className={settled ? "card-thumb" : "card-thumb loading"}>
+    <div className={loaded ? "card-thumb" : "card-thumb loading"}>
       <img
         src={src}
         alt=""
@@ -57,13 +63,10 @@ function Thumbnail({ video, card }: { video: Video; card: RefObject<HTMLAnchorEl
         decoding="async"
         referrerPolicy="no-referrer"
         onLoad={(event) => {
-          setSettled(true);
+          setLoaded(true);
           if (card.current) tints.request(event.currentTarget, card.current);
         }}
-        onError={() => {
-          if (src === remote) setSettled(true);
-          else setSrc(remote);
-        }}
+        onError={() => setIndex((i) => i + 1)}
       />
     </div>
   );

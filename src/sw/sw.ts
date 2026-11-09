@@ -1,7 +1,7 @@
 /* The service worker: makes the site installable and usable offline.
  *
- * - Pages, the app's files and videos.csv: network first, so a new deploy
- *   or catalog shows up on the next load. The cached copy answers when
+ * - Pages, the app's files and the catalog (Games.txt, Videos.txt): network
+ *   first, so a new deploy or catalog shows up on the next load. The cached copy answers when
  *   offline, or when the network is slower than NETWORK_TIMEOUT_MS.
  * - Thumbnails: cache first, since a video's thumbnail never changes. They
  *   are cached as they're viewed, not all up front.
