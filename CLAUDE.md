@@ -32,7 +32,8 @@ also check it in `npm run preview` or a built image.
 - `studio/`, `src/studio/`: the catalog editor at `/studio/`, a second page
   of the same build (its own HTML entry, no service worker). Its rules are
   in `src/lib/studio.ts`, and it shares the file rules in `src/lib/catalog.ts`.
-- `src/ui/`: browser helpers (brand, tint, version, SW registration).
+- `src/ui/`: browser helpers (brand, tint, version, SW registration, and the
+  Halloween shriek's sound).
 - `src/sw/`: the service worker, built separately (`vite.sw.config.ts`).
   `strategy.ts` holds its pure, tested parts.
 - `build/`: build-time helpers used by the Vite configs (CSP, shell file

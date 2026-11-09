@@ -25,9 +25,8 @@ For local development, put copies in `public/assets/api/` (git-ignored).
 
 Until the catalog volume holds both files, the container serves a demo
 catalog (`public/assets/demo/`, built into the image) at the same URLs. The
-volume stays read-only. Once both files
-are there, they're used straight away: replace them and the site shows the
-new catalog on the next visit.
+volume stays read-only. Once both files are there, they're used straight
+away: replace them and the site shows the new catalog on the next visit.
 
 **`Games.txt`**, one row per game:
 
