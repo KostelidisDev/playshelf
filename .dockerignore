@@ -20,6 +20,9 @@
 public/assets/api
 public/assets/thumbnails
 
+# The migration's input and output (migrate_catalog.py), kept out of the image.
+migration
+
 # Used by the image itself
 !site.conf
 !docker-entrypoint.sh

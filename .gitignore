@@ -1,6 +1,7 @@
 # Dependencies and tool caches
 node_modules
 .npm-cache
+__pycache__
 
 # Build output: dist/ (npm run build), standalone sites (npm run standalone),
 # and the release zips the standalone workflow makes
@@ -19,6 +20,10 @@ public/assets/api/*
 !public/assets/api/.gitkeep
 public/assets/thumbnails/*
 !public/assets/thumbnails/.gitkeep
+
+# The old single-file catalog and the Games.txt/Videos.txt that
+# migrate_catalog.py makes from it: the maintainer's own data.
+migration
 
 # Editor, OS and tool files
 .idea
