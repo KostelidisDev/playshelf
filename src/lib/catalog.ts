@@ -278,7 +278,7 @@ export function remoteThumbnailUrl(video: { readonly id: string }): string {
   return `https://i.ytimg.com/vi/${encodeURIComponent(video.id)}/hqdefault.jpg`;
 }
 
-/** A game's cover (box art) that scripts/preload_media.py stores here. It
+/** A game's cover (box art) that preload_media.py stores here. It
  * sits in the thumbnails folder, so the container's volume and the service
  * worker's cache already cover it. */
 export function coverUrl(game: { readonly id: string }): string {
