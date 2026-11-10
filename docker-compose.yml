@@ -13,8 +13,6 @@ services:
     container_name: ${INSTANCE_NAME:-playshelf}
     restart: unless-stopped
     read_only: true
-    # An init process, to reap the thumbnail sync's finished processes.
-    init: true
     tmpfs:
       - /tmp
     cap_drop:
@@ -29,19 +27,14 @@ services:
       # The site's description (search results, link previews, installed
       # app). Also read when the container starts.
       SITE_DESCRIPTION: "${SITE_DESCRIPTION:-A hand-picked collection of YouTube videos, from any creator, grouped by game.}"
-      # Downloads the missing thumbnails of the videos in videos.csv as WebP,
-      # in the background, checking again every THUMBNAILS_SYNC_INTERVAL
-      # seconds.
-      THUMBNAILS_SYNC: "${THUMBNAILS_SYNC:-true}"
-      THUMBNAILS_SYNC_INTERVAL: "${THUMBNAILS_SYNC_INTERVAL:-3600}"
-      THUMBNAILS_WIDTH: "${THUMBNAILS_WIDTH:-640}"
-      THUMBNAILS_QUALITY: "${THUMBNAILS_QUALITY:-80}"
-      THUMBNAILS_JOBS: "${THUMBNAILS_JOBS:-4}"
-    # The catalog (videos.csv, read-only) and the thumbnails (written by the
-    # sync) live outside the image; the volumes are defined at the end. With
-    # nocopy, Docker never copies the image's empty directory into the data
-    # mount. The thumbnails volume is created from the image's directory, so
-    # it belongs to www-data from the start.
+      # The site's address. It sets the canonical link and the preview
+      # image's address, and defaults to https://DOMAIN. Read when the
+      # container starts.
+      SITE_URL: "${SITE_URL:-https://${DOMAIN:-playself.kostelidis.dev}}"
+    # The catalog (Games.txt and Videos.txt) and the thumbnails and covers
+    # lie outside the image, read-only; the volumes are defined at the end.
+    # With nocopy, Docker never copies the image's empty directories into
+    # the mounts.
     volumes:
       - type: volume
         source: data
@@ -52,6 +45,9 @@ services:
       - type: volume
         source: thumbnails
         target: /usr/local/apache2/htdocs/assets/thumbnails
+        read_only: true
+        volume:
+          nocopy: true
     networks:
       - playshelf
     logging: *default-logging
@@ -78,12 +74,40 @@ services:
       - "traefik.enable=true"
       # Router. TLS comes from the websecure entrypoint's default wildcard
       # certificate.
-      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.rule=Host(`${DOMAIN:?DOMAIN is required}`)"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.rule=Host(`${DOMAIN:-playself.kostelidis.dev}`)"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.entrypoints=websecure"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.service=${INSTANCE_NAME:-playshelf}"
       # strict-path@file is a shared policy from the Traefik stack: a static
       # site needs no encoded characters in its paths.
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.middlewares=strict-path@file"
+      # The catalog editor has a host of its own, so it installs as an app
+      # beside the site: a site installed on DOMAIN would take /studio/ into
+      # its own app. The editor's pages and the files they load are served on
+      # EDITOR_DOMAIN; anything else there goes to /studio/. /studio/ on DOMAIN
+      # moves to the editor's host.
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.rule=Host(`${EDITOR_DOMAIN:-playself-studio.kostelidis.dev}`) && (PathPrefix(`/studio/`) || PathPrefix(`/assets/`))"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.entrypoints=websecure"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.service=${INSTANCE_NAME:-playshelf}"
+      # The editor is always behind basic auth (PLAYSHELF_AUTH, see .env.example),
+      # so the catalog can't be opened by anyone who finds the host.
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.middlewares=${INSTANCE_NAME:-playshelf}-auth,strict-path@file"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.rule=Host(`${EDITOR_DOMAIN:-playself-studio.kostelidis.dev}`)"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.entrypoints=websecure"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.service=${INSTANCE_NAME:-playshelf}"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.middlewares=${INSTANCE_NAME:-playshelf}-auth,${INSTANCE_NAME:-playshelf}-to-editor"
+      # The users for the editor, and for the site when docker-compose.basic-auth.yml
+      # is used too. Required: compose won't start without them.
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-auth.basicauth.users=${PLAYSHELF_AUTH:?PLAYSHELF_AUTH is required: the editor is always behind basic auth}"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.rule=Host(`${DOMAIN:-playself.kostelidis.dev}`) && PathPrefix(`/studio/`)"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.entrypoints=websecure"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.service=${INSTANCE_NAME:-playshelf}"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.middlewares=${INSTANCE_NAME:-playshelf}-studio-moved"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-to-editor.redirectregex.regex=^https?://[^/]+/.*"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-to-editor.redirectregex.replacement=https://${EDITOR_DOMAIN:-playself-studio.kostelidis.dev}/studio/"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-to-editor.redirectregex.permanent=true"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-studio-moved.redirectregex.regex=^https?://[^/]+/studio/(.*)$"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-studio-moved.redirectregex.replacement=https://${EDITOR_DOMAIN:-playself-studio.kostelidis.dev}/studio/$$1"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-studio-moved.redirectregex.permanent=true"
       # Service
       - "traefik.http.services.${INSTANCE_NAME:-playshelf}.loadbalancer.server.port=8080"
 
@@ -96,13 +120,13 @@ networks:
         - subnet: ${PLAYSHELF_NETWORK_SUBNET_V4:-10.100.0.0/24}
         - subnet: ${PLAYSHELF_NETWORK_SUBNET_V6:-fd00:100::/64}
 
-# data holds videos.csv: a bind mount, an NFS export or a CIFS/SMB share, set
-# by the three PLAYSHELF_DATA_VOLUME_* variables (examples in .env.example).
-# The container runs as uid/gid 82 (www-data), which must be able to read
-# it. Docker keeps a volume's settings from when it was created: after
-# changing them, `docker compose down` and `docker volume rm` the volume.
-# thumbnails is a plain Docker volume; if it's removed, the sync downloads
-# the thumbnails again.
+# data holds Games.txt and Videos.txt, and thumbnails holds the video
+# thumbnails and game covers. Each is a bind mount, an NFS export or a
+# CIFS/SMB share, set by its three PLAYSHELF_*_VOLUME_* variables (examples
+# in .env.example). The container runs as uid/gid 82 (www-data), which must
+# be able to read both. Docker keeps a volume's settings from when it was
+# created: after changing them, `docker compose down` and `docker volume rm`
+# the volume.
 volumes:
   data:
     name: ${INSTANCE_NAME:-playshelf}-data
@@ -113,3 +137,8 @@ volumes:
       device: "${PLAYSHELF_DATA_VOLUME_DEVICE:?PLAYSHELF_DATA_VOLUME_DEVICE is required}"
   thumbnails:
     name: ${INSTANCE_NAME:-playshelf}-thumbnails
+    driver: local
+    driver_opts:
+      type: "${PLAYSHELF_THUMBNAILS_VOLUME_TYPE:-none}"
+      o: "${PLAYSHELF_THUMBNAILS_VOLUME_OPTIONS:-bind}"
+      device: "${PLAYSHELF_THUMBNAILS_VOLUME_DEVICE:?PLAYSHELF_THUMBNAILS_VOLUME_DEVICE is required}"

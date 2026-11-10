@@ -7,9 +7,9 @@ const icon = (path: string, className = "icon") => (
   </svg>
 );
 
-export const GamepadIcon = () => icon(
+export const GamepadIcon = ({ className = "icon brand-icon" }: { className?: string } = {}) => icon(
   "M21.58 16.09l-1.09-7.66A3.996 3.996 0 0016.53 5H7.47C5.48 5 3.79 6.46 3.51 8.43l-1.09 7.66a2.545 2.545 0 004.31 2.16L9 16h6l2.27 2.25c.48.48 1.13.75 1.8.75 1.56 0 2.75-1.38 2.51-2.91zM11 11H9v2H8v-2H6v-1h2V8h1v2h2v1zm4-1c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm2 3c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z",
-  "icon brand-icon",
+  className,
 );
 
 /* Not a Material icon: the logo while the Halloween easter egg is on
@@ -27,3 +27,9 @@ export const InstallIcon = () => icon("M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z
 export const SearchIcon = () => icon(
   "M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
 );
+
+/* Material's video camera, for the videos. */
+export const VideoIcon = () => icon("M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z");
+
+/* Material's folder with a zip, for the catalog's archive. */
+export const ZipIcon = () => icon("M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-2 6h-2v2h2v2h-2v2h-2v-2h2v-2h-2v-2h2v-2h-2V8h2v2h2v2z");

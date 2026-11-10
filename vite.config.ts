@@ -1,16 +1,36 @@
 /// <reference types="vitest/config" />
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { fileURLToPath, URL } from "node:url";
+import { defineConfig, type Plugin } from "vite";
 import { sitePlugin } from "./build/site.ts";
-import { sitePolicy } from "./build/csp.ts";
+import { sitePolicy, studioPolicy } from "./build/csp.ts";
 import { APP_ASSETS_DIR } from "./build/shell.ts";
 import { appVersion } from "./build/version.ts";
 
-// The app (index.html and everything it loads). The service worker is a
-// second build, run after this one: vite.sw.config.ts.
+// `npm run preview` serves the build under the production CSP, the site's
+// policy or the editor's, chosen by path as Apache does it from site.conf.
+// (`vite dev` can't: its module loading needs inline code.)
+function previewPolicy(): Plugin {
+  const site = sitePolicy("site.conf");
+  const studio = studioPolicy("site.conf");
+  return {
+    name: "preview-csp",
+    configurePreviewServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const editor = /^\/studio(?:[/?]|$)/.test(request.url ?? "");
+        response.setHeader("Content-Security-Policy", editor ? studio : site);
+        next();
+      });
+    },
+  };
+}
+
+// The app (index.html and everything it loads), and the catalog editor at
+// /studio/ (studio/index.html), which shares its code and assets. The
+// service worker is a second build, run after this one: vite.sw.config.ts.
 export default defineConfig({
   base: "./",
-  plugins: [react(), sitePlugin()],
+  plugins: [react(), sitePlugin(), previewPolicy()],
   define: {
     __APP_VERSION__: JSON.stringify(appVersion()),
   },
@@ -22,11 +42,12 @@ export default defineConfig({
     // Every supported browser has native modulepreload; the polyfill would
     // only add a script.
     modulePreload: { polyfill: false },
-  },
-  // `npm run preview` serves the build under the production CSP. (`vite dev`
-  // can't: its module loading needs inline code.)
-  preview: {
-    headers: { "Content-Security-Policy": sitePolicy("site.conf") },
+    rollupOptions: {
+      input: {
+        index: fileURLToPath(new URL("./index.html", import.meta.url)),
+        studio: fileURLToPath(new URL("./studio/index.html", import.meta.url)),
+      },
+    },
   },
   test: {
     environment: "jsdom",

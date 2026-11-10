@@ -5,5 +5,5 @@
     "lib": ["ES2023", "WebWorker"],
     "types": []
   },
-  "include": ["src/sw/sw.ts", "src/sw/strategy.ts", "src/sw/globals.d.ts"]
+  "include": ["src/sw/sw.ts", "src/sw/studio.ts", "src/sw/fetch.ts", "src/sw/fetch.test.ts", "src/sw/strategy.ts", "src/sw/globals.d.ts"]
 }

@@ -6,6 +6,12 @@ export type CsvRecord = Record<string, string>;
  * BOM, and skips blank lines. Returns one record per row, keyed by the
  * header row. */
 export function parseCSV(text: string): CsvRecord[] {
+  return parseCSVTable(text).rows;
+}
+
+/** As parseCSV, but also returns the header row, so a file with no data
+ * rows still says which columns it has. */
+export function parseCSVTable(text: string): { header: string[]; rows: CsvRecord[] } {
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
 
   const rows: string[][] = [];
@@ -51,9 +57,10 @@ export function parseCSV(text: string): CsvRecord[] {
   const [header = [], ...body] = rows.filter((r) => r.length > 1 || r[0] !== "");
   // Null-prototype records: a column named "__proto__" is just a column and
   // can't reach Object.prototype.
-  return body.map((cells) => {
+  const records = body.map((cells) => {
     const record: CsvRecord = Object.create(null);
     header.forEach((key, i) => { record[key] = cells[i] ?? ""; });
     return record;
   });
+  return { header, rows: records };
 }
