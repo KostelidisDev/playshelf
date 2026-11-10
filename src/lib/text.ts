@@ -24,13 +24,6 @@ export function cleanText(value: unknown, maxLength = 300): string {
     .slice(0, maxLength);
 }
 
-/** Orders titles as people read them: case and accents ignored, so "é" sorts
- * with "e" and "zelda" with "Zelda". Every title list in the site and the
- * editor sorts with this. */
-export function compareTitles(a: string, b: string): number {
-  return a.localeCompare(b, undefined, { sensitivity: "base" });
-}
-
 /** "1 game", "2 games". */
 export function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"}`;

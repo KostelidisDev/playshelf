@@ -1,8 +1,8 @@
 import { useCallback } from "react";
-import { gameImages, type Game } from "../lib/catalog.ts";
 import type { Page } from "../lib/pagination.ts";
 import { gameUrl, homeUrl, type RouteState } from "../lib/routes.ts";
 import { plural } from "../lib/text.ts";
+import type { Game } from "../lib/videos.ts";
 import { Card } from "./Card.tsx";
 import { Message } from "./Message.tsx";
 import { PagedGrid } from "./PagedGrid.tsx";
@@ -15,8 +15,7 @@ interface Props {
   onClearFilters: () => void;
 }
 
-/** The grid of every game, filtered by the search box and the A-Z index.
- * Games without videos yet are listed too. */
+/** The grid of games, filtered by the search box and the A-Z index. */
 export function HomeView({ route, page, onOpenGame, onPage, onClearFilters }: Props) {
   const { query, letter } = route;
   const urlFor = useCallback((p: number) => homeUrl({ query, letter, page: p }), [query, letter]);
@@ -38,12 +37,12 @@ export function HomeView({ route, page, onOpenGame, onPage, onClearFilters }: Pr
       onNavigate={onPage}
       renderItem={(game) => (
         <Card
-          key={game.id}
-          href={gameUrl(game.id)}
+          key={game.key}
+          href={gameUrl(game.key)}
+          video={game.videos[0]!}
           title={game.title}
-          meta={game.videos.length === 0 ? "No videos yet" : plural(game.videos.length, "video")}
+          meta={plural(game.videos.length, "video")}
           variant="game"
-          images={gameImages(game, game.videos[0])}
           onNavigate={onOpenGame}
         />
       )}

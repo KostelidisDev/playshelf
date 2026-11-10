@@ -436,10 +436,6 @@ button, input { font: inherit; color: inherit; }
   overflow: hidden;
 }
 .card-game .card-title { --title-lines: 2; font-weight: 600; -webkit-line-clamp: 2; line-clamp: 2; }
-/* A game's picture is its box art, which is portrait, so game cards use a
- * 3:4 frame. A video thumbnail standing in for a missing cover is cropped to
- * fit it. */
-.card-game .card-thumb { aspect-ratio: 3 / 4; }
 
 .card-meta {
   margin-top: auto;
@@ -517,7 +513,7 @@ button, input { font: inherit; color: inherit; }
   .pager-pages { gap: 2px; }
 }
 
-/* Loading states: skeleton cards while the catalog loads, and thumbnails
+/* Loading states: skeleton cards while videos.csv loads, and thumbnails
    that are still downloading (.loading). The shimmer is a band of light
    moved with transform, so it runs on the compositor and never repaints,
    however many are on screen. */

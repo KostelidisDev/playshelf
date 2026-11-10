@@ -1,5 +1,5 @@
 {
-  "name": "playshelf",
+  "name": "creator-landing-page-site",
   "private": true,
   "type": "module",
   "engines": {
@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && vite build --config vite.sw.config.ts && vite build --config vite.studio-sw.config.ts",
+    "build": "tsc -b && vite build && vite build --config vite.sw.config.ts",
     "preview": "vite preview",
     "standalone": "node build/standalone.ts",
     "typecheck": "tsc -b",
@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "react": "19.3.1",
-    "react-day-picker": "10.0.2",
     "react-dom": "19.3.1"
   },
   "devDependencies": {
