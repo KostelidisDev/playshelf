@@ -13,7 +13,7 @@
 
 import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
-import { MANIFEST_FILES, PAGE_FILES, fillHtml, fillJson, siteSettings, type SiteSettings } from "./site.ts";
+import { MANIFEST_FILES, PAGE_FILES, fillHtml, fillJson, requireSiteUrl, siteSettings, type SiteSettings } from "./site.ts";
 
 /** site.conf as logical lines: continuations joined, runs of spaces
  * collapsed, trimmed. */
@@ -129,7 +129,7 @@ if (import.meta.main) {
     console.error("Usage: npm run standalone -- <out-dir>");
     process.exit(1);
   }
-  const site = siteSettings();
+  const site = requireSiteUrl(siteSettings());
   buildStandalone("dist", outDir, site, "site.conf");
   console.log(`Standalone site for ${JSON.stringify(site.name)} in ${outDir}`);
 }

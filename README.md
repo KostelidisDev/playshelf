@@ -152,12 +152,13 @@ npm run standalone -- <dir>   # after build: a standalone site (see below)
 `SITE_NAME=...` and `SITE_DESCRIPTION=...` before `npm run dev` (or
 `preview`) set the site's name and description locally; they default to
 `PlayShelf` and "A hand-picked collection of YouTube videos, from any creator, grouped by game."
+`SITE_URL` is optional there.
 
 ## Docker
 
 ```sh
 docker build -t playshelf .
-docker run --rm -p 8080:8080 -e SITE_NAME="Some Site" \
+docker run --rm -p 8080:8080 -e SITE_NAME="Some Site" -e SITE_URL=https://games.example.com \
   -v "$PWD/public/assets/api:/usr/local/apache2/htdocs/assets/api:ro" \
   -v "$PWD/public/assets/thumbnails:/usr/local/apache2/htdocs/assets/thumbnails:ro" \
   playshelf
@@ -178,6 +179,7 @@ Dockerfile. Build arguments:
 | ------------------ | ------------------------------- | --------------------------------------------- |
 | `SITE_NAME`        | `PlayShelf`                     | Page title, app bar, installed app; the catalog editor is "<name> Catalog editor". |
 | `SITE_DESCRIPTION` | "A hand-picked collection of …" | Search results, link previews, installed app. |
+| `SITE_URL`         | `https://$DOMAIN` (compose)     | The site's address, its root. Canonical link and preview image. The standalone build requires it. |
 
 `index.html` and `manifest.webmanifest` contain `__SITE_NAME__` and
 `__SITE_DESCRIPTION__` placeholders. When the container starts,
@@ -185,6 +187,25 @@ Dockerfile. Build arguments:
 (`site.conf`) fills them in as those files are served. Each must be one line
 of text. Changing them only needs a restart, not a rebuild. The files in the
 image stay read-only.
+
+`index.html` carries the Open Graph and Twitter card tags (title, description,
+name, and the preview image, a 512 px icon). `__SITE_LINKS__` in `index.html`
+holds the tags that need `SITE_URL`, and is filled in the same way. Without
+`SITE_URL` (local builds only, since the container and the standalone build
+require it), those tags are left out.
+
+Game pages (`?game=…`) are drawn in the browser, so search engines and link
+previews see the home page's tags for every game. Per-game tags would need
+pre-rendering, which the site doesn't do.
+
+`robots.txt` lets search engines index the home page only. Game pages, the
+search and letter filters (all query strings on the home address), and the
+catalog editor under `/studio/` are disallowed. The editor's page also says
+`noindex`, but a crawler that's disallowed never fetches that page, so the
+`noindex` can't take effect while the rule is in place. The rule keeps
+crawlers away from the editor; the `noindex` only matters if the rule is
+removed. The app's code, the catalog and the icons stay allowed, because the
+browser-drawn home page needs them to render.
 
 ### Hardening
 
@@ -202,7 +223,7 @@ it, for a site that shouldn't be public. A site protected some other way uses
 `docker-compose.yml` alone.
 
 ```sh
-cp .env.example .env   # set DOMAIN, EDITOR_DOMAIN, PLAYSHELF_AUTH and both data volumes
+cp .env.example .env   # set PLAYSHELF_AUTH and both data volumes; DOMAIN and EDITOR_DOMAIN default to the kostelidis.dev hosts
 docker compose -f docker-compose.yml -f docker-compose.basic-auth.yml up -d
 ```
 
@@ -284,7 +305,7 @@ To build a standalone site locally, with any name and description:
 
 ```sh
 npm run build
-SITE_NAME="Some Site" SITE_DESCRIPTION="..." npm run standalone -- standalone/some-site
+SITE_NAME="Some Site" SITE_DESCRIPTION="..." SITE_URL=https://some.example.org npm run standalone -- standalone/some-site
 ```
 
 ## Project layout

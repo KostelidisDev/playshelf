@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { sitePolicy } from "./csp.ts";
 import { shellFiles, studioShellFiles } from "./shell.ts";
-import { DEFAULT_SITE_DESCRIPTION, DEFAULT_SITE_NAME, fillHtml, fillJson, siteSettings } from "./site.ts";
+import { DEFAULT_SITE_DESCRIPTION, DEFAULT_SITE_NAME, fillHtml, fillJson, linkTags, requireSiteUrl, siteSettings } from "./site.ts";
 import { buildStandalone, htaccess } from "./standalone.ts";
 import { appVersion } from "./version.ts";
 
@@ -108,8 +108,49 @@ describe("site settings", () => {
       .toEqual(site);
   });
 
+  it("read SITE_URL as the site's root, and reject anything else", () => {
+    expect(siteSettings({})).not.toHaveProperty("url");
+    expect(siteSettings({ SITE_URL: "  " })).not.toHaveProperty("url");
+    expect(siteSettings({ SITE_URL: " https://games.example.com " }).url).toBe("https://games.example.com/");
+    expect(siteSettings({ SITE_URL: "https://example.com/games///" }).url).toBe("https://example.com/games/");
+    for (const bad of ["games.example.com", "ftp://x.com", "https://x.com/?a=1", "https://x.com/#top", 'https://x.com/"', "https://"]) {
+      expect(() => siteSettings({ SITE_URL: bad })).toThrow("Invalid SITE_URL");
+    }
+  });
+
+  it("write the link tags only with a SITE_URL, escaped for HTML", () => {
+    expect(linkTags({ name: "n", description: "d" })).toBe("");
+    const tags = linkTags({ name: "n", description: "d", url: "https://x.com/a/&b/" });
+    expect(tags).toContain("<link rel='canonical' href='https://x.com/a/&amp;b/'>");
+    expect(tags).toContain("<meta property='og:image' content='https://x.com/a/&amp;b/assets/icons/icon-512.png'>");
+    expect(tags).not.toContain('"');
+    expect(fillHtml('<head>__SITE_LINKS__</head>', { name: "n", description: "d" })).toBe("<head></head>");
+  });
+
   it("leave unknown placeholders alone", () => {
     expect(fillHtml("__SITE_OTHER__", { name: "n", description: "d" })).toBe("__SITE_OTHER__");
+  });
+});
+
+describe("published sites", () => {
+  it("need a SITE_URL", () => {
+    expect(() => requireSiteUrl(siteSettings({}))).toThrow("SITE_URL must be set");
+    expect(requireSiteUrl(siteSettings({ SITE_URL: "https://games.example.com" })).url).toBe("https://games.example.com/");
+  });
+});
+
+describe("robots.txt", () => {
+  const robots = readFileSync(resolve(import.meta.dirname, "../public/robots.txt"), "utf8");
+  const rules = robots.split("\n").map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
+
+  it("lets crawlers index the home page only, and keeps the editor out", () => {
+    expect(rules).toContain("Allow: /$");
+    expect(rules).toContain("Disallow: /");
+    expect(rules).toContain("Disallow: /studio/");
+    // Every allow is for the home page or the files it needs to render.
+    for (const rule of rules.filter((line) => line.startsWith("Allow:"))) {
+      expect(rule === "Allow: /$" || /^Allow: \/(assets\/(api|app|icons)\/|manifest\.webmanifest)$/.test(rule)).toBe(true);
+    }
   });
 });
 

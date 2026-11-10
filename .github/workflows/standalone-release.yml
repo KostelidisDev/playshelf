@@ -48,13 +48,18 @@ jobs:
 
       # The build has no site name or description in it; each standalone
       # site gets its own (build/standalone.ts).
+      # SITE_URL is required: each site's address, set as a repository
+      # variable (Settings > Secrets and variables > Actions > Variables).
       - name: Package the PlayShelf site
+        env:
+          SITE_URL: ${{ vars.PLAYSHELF_SITE_URL }}
         run: npm run standalone -- standalone/playshelf
 
       - name: Package the Kostelidis.dev site
         env:
           SITE_NAME: Kostelidis.dev
           SITE_DESCRIPTION: My Gaming Videos Organized By Game Titles
+          SITE_URL: ${{ vars.KOSTELIDIS_SITE_URL }}
         run: npm run standalone -- standalone/kostelidis-dev
 
       # Each zip holds the site's files at its top level, .htaccess included.
