@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { GameCatalog } from "../lib/videos.ts";
+import { Catalog } from "../lib/catalog.ts";
 
 export type CatalogState =
   | { status: "loading" }
-  | { status: "ready"; catalog: GameCatalog }
+  | { status: "ready"; catalog: Catalog }
   | { status: "error"; error: unknown };
 
-export type CatalogLoader = () => Promise<GameCatalog>;
+export type CatalogLoader = () => Promise<Catalog>;
 
-const defaultLoader: CatalogLoader = () => GameCatalog.load();
+const defaultLoader: CatalogLoader = () => Catalog.load();
 
 /** Loads the catalog once on mount. The returned `retry` loads it again,
  * for after an error. */

@@ -7,5 +7,5 @@
     "types": ["vite/client"]
   },
   "include": ["src"],
-  "exclude": ["src/sw/sw.ts", "src/sw/globals.d.ts"]
+  "exclude": ["src/sw/sw.ts", "src/sw/studio.ts", "src/sw/fetch.ts", "src/sw/fetch.test.ts", "src/sw/globals.d.ts"]
 }

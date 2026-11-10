@@ -1,9 +1,9 @@
 /* The app's state in the URL. "./" is the game grid (?q= search, ?l=
- * letter, ?p= page); "./?g=<game>" is one game's videos (also ?p=). */
+ * letter, ?p= page); "./?g=<game id>" is one game's videos (also ?p=). */
 
 export interface RouteState {
   /** null on the grid of games. */
-  gameKey: string | null;
+  gameId: string | null;
   query: string;
   letter: string | null;
   page: number;
@@ -19,11 +19,22 @@ export function parseRoute(search: string): RouteState {
   const letter = params.get("l");
   const page = params.get("p");
   return {
-    gameKey: params.get("g"),
+    gameId: params.get("g"),
     query: (params.get("q") ?? "").slice(0, MAX_QUERY_LENGTH),
     letter: letter && /^([A-Z]|#)$/.test(letter) ? letter : null,
     page: page && /^[1-9]\d{0,4}$/.test(page) ? Number(page) : 1,
   };
+}
+
+/** Whether a link may go where it points: a relative address (the app's own
+ * pages and files) or an http(s) one. Any other scheme (javascript:, data:)
+ * and protocol-relative addresses (//host) are refused. Browsers ignore
+ * control characters and spaces inside a URL, so they're ignored here too:
+ * "java\tscript:" would otherwise get past the check. */
+export function isSafeHref(href: string): boolean {
+  const read = href.replace(/[\u0000-\u0020]/g, "");
+  if (/^[a-z][a-z0-9+.-]*:/i.test(read)) return /^https?:/i.test(read);
+  return !/^[/\\]{2}/.test(read);
 }
 
 /** The grid's URL, leaving out default values. */
@@ -36,9 +47,9 @@ export function homeUrl({ query = "", letter = null, page = 1 }: { query?: strin
   return search ? `./?${search}` : "./";
 }
 
-/** A game's URL; `key` is the game title as in the catalog. */
-export function gameUrl(key: string, page = 1): string {
-  const params = new URLSearchParams({ g: key });
+/** A game's URL; `id` is the game's id in Games.txt. */
+export function gameUrl(id: string, page = 1): string {
+  const params = new URLSearchParams({ g: id });
   if (page > 1) params.set("p", String(page));
   return `./?${params}`;
 }

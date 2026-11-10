@@ -1,16 +1,33 @@
+# The build context starts empty, and only what the image needs is added
+# back. The build stage runs `npm ci`, `npm test` and `npm run build`; the
+# final image serves dist/ and runs the two scripts. Anything not listed
+# here is never sent to the daemon or copied into the image.
 *
+
+# App sources and config (npm test, npm run build)
 !index.html
+!studio
 !package.json
 !package-lock.json
 !tsconfig*.json
 !vite.config.ts
 !vite.sw.config.ts
+!vite.studio-sw.config.ts
 !build
 !src
 !public
+
 # Real data is mounted at runtime, never built into the image.
 public/assets/api
 public/assets/thumbnails
+
+# The migration's input and output (migrate_catalog.py), kept out of the image.
+migration
+
+# Used by the image itself
 !site.conf
 !docker-entrypoint.sh
-!sync-thumbnails.sh
+
+# Secrets and OS files, even inside the trees that are included above
+**/.env
+**/.DS_Store
