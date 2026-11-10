@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Draft, DraftStore } from "./draftStore.ts";
+import type { LiveResult } from "./liveCatalog.ts";
 import { StudioApp } from "./StudioApp.tsx";
 
 const GAMES_HEADER = "game_id,title";
@@ -31,9 +32,12 @@ afterEach(() => {
 
 type User = ReturnType<typeof userEvent.setup>;
 
+/** A site with no catalog to load, so the tests open the files by hand. */
+const noLive = async (): Promise<LiveResult> => ({ ok: false, error: "No site in tests." });
+
 function renderEditor(): User {
   const user = userEvent.setup();
-  render(<StudioApp />);
+  render(<StudioApp loadLive={noLive} />);
   return user;
 }
 
@@ -321,7 +325,7 @@ describe("StudioApp: the saved copy in this browser", () => {
   it("keeps the files, with the unsaved changes, and restores them on the next visit", async () => {
     const drafts = memoryDrafts();
     const user = userEvent.setup();
-    const first = render(<StudioApp drafts={drafts.store} />);
+    const first = render(<StudioApp drafts={drafts.store} loadLive={noLive} />);
     await openBoth(user, games("zelda,Zelda"), videos(`${ID_A},Old,2020-01-01,zelda`));
     await user.click(screen.getByRole("button", { name: "Add game" }));
     await user.type(screen.getByLabelText("Title"), "Apex");
@@ -331,7 +335,7 @@ describe("StudioApp: the saved copy in this browser", () => {
     expect(screen.getByText(/kept in this browser, but only temporarily/)).toBeInTheDocument();
     first.unmount();
 
-    render(<StudioApp drafts={drafts.store} />);
+    render(<StudioApp drafts={drafts.store} loadLive={noLive} />);
     expect(await screen.findByRole("tablist")).toBeInTheDocument();
     expect(listedTitles()).toEqual(["Apex", "Zelda"]);
     expect(screen.getByText("Restored your last edits from this browser.")).toBeInTheDocument();
@@ -339,15 +343,15 @@ describe("StudioApp: the saved copy in this browser", () => {
   });
 
   it("restores a single file, so the other can still be opened", async () => {
-    const drafts = memoryDrafts({ games: `${GAMES_HEADER}\nzelda,Zelda\n`, videos: null, gamesDirty: false, videosDirty: false });
-    render(<StudioApp drafts={drafts.store} />);
+    const drafts = memoryDrafts({ games: `${GAMES_HEADER}\nzelda,Zelda\n`, videos: null, gamesDirty: true, videosDirty: false });
+    render(<StudioApp drafts={drafts.store} loadLive={noLive} />);
     expect(await screen.findByText("Games.txt is open. Open Videos.txt to continue.")).toBeInTheDocument();
     expect(screen.getByText("Games.txt · 1 game")).toBeInTheDocument();
   });
 
   it("leaves out a copy it can't read, and says so", async () => {
     const drafts = memoryDrafts({ games: "title\nZelda\n", videos: null, gamesDirty: true, videosDirty: false });
-    render(<StudioApp drafts={drafts.store} />);
+    render(<StudioApp drafts={drafts.store} loadLive={noLive} />);
     expect(await screen.findByText("The saved copy in this browser couldn't be read, so it wasn't loaded.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Edit the catalog" })).toBeInTheDocument();
   });
@@ -355,8 +359,8 @@ describe("StudioApp: the saved copy in this browser", () => {
   it("forgets the copy on request, and goes back to the start", async () => {
     const drafts = memoryDrafts();
     const user = userEvent.setup();
-    render(<StudioApp drafts={drafts.store} />);
-    await openBoth(user, games("zelda,Zelda"), videos());
+    render(<StudioApp drafts={drafts.store} loadLive={noLive} />);
+    await user.click(screen.getByRole("button", { name: "Start a new catalog" }));
     await user.click(screen.getByRole("button", { name: "Forget saved copy" }));
     expect(drafts.store.clear).toHaveBeenCalledOnce();
     expect(drafts.peek()).toBeNull();
@@ -366,8 +370,8 @@ describe("StudioApp: the saved copy in this browser", () => {
   it("says when the browser won't keep a copy", async () => {
     const drafts = memoryDrafts(null, { saves: false });
     const user = userEvent.setup();
-    render(<StudioApp drafts={drafts.store} />);
-    await openBoth(user, games("zelda,Zelda"), videos());
+    render(<StudioApp drafts={drafts.store} loadLive={noLive} />);
+    await user.click(screen.getByRole("button", { name: "Start a new catalog" }));
     expect(await screen.findByText(/won't keep a copy of the catalog/)).toBeInTheDocument();
     expect(screen.queryByText(/kept in this browser, but only temporarily/)).not.toBeInTheDocument();
   });
@@ -385,5 +389,42 @@ describe("StudioApp: the name", () => {
     } finally {
       meta.remove();
     }
+  });
+});
+
+describe("StudioApp: the site's files", () => {
+  it("opens the site's current files, with nothing unsaved", async () => {
+    const live = async (): Promise<LiveResult> => ({
+      ok: true,
+      files: { games: games("zelda,Zelda"), videos: videos(`${ID_A},Old,2020-01-01,zelda`) },
+    });
+    render(<StudioApp drafts={memoryDrafts().store} loadLive={live} />);
+    expect(await screen.findByRole("tablist")).toBeInTheDocument();
+    expect(listedTitles()).toEqual(["Zelda"]);
+    expect(statusText()).toContain("Games.txt · 1 game");
+    expect(statusText()).not.toContain("unsaved changes");
+    expect(screen.queryByText(/aren't downloaded yet/)).not.toBeInTheDocument();
+  });
+
+  it("says why the site's files weren't opened, and offers to open them by hand", async () => {
+    render(<StudioApp drafts={memoryDrafts().store} loadLive={noLive} />);
+    expect(await screen.findByText(/couldn't be loaded from the site: No site in tests\./)).toBeInTheDocument();
+    expect(screen.getByLabelText("Open Games.txt")).toBeInTheDocument();
+  });
+
+  it("downloads both files in one zip, and says what's still to download", async () => {
+    const user = renderEditor();
+    await user.click(screen.getByRole("button", { name: "Start a new catalog" }));
+    expect(screen.getByText(/aren't downloaded yet/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Download catalog (.zip)" }));
+
+    const blob: Blob = createObjectURL.mock.calls.at(-1)![0];
+    expect(blob.type).toBe("application/zip");
+    const archive = new TextDecoder("latin1").decode(await blob.arrayBuffer());
+    expect(archive.startsWith("PK\u0003\u0004")).toBe(true);
+    expect(archive).toContain("Games.txt");
+    expect(archive).toContain("Videos.txt");
+    expect(archive).toContain("game_id,title");
+    expect(screen.queryByText(/aren't downloaded yet/)).not.toBeInTheDocument();
   });
 });

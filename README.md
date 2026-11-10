@@ -107,13 +107,21 @@ environment and never written to disk.
 
 ### Catalog editor
 
-`/studio/` edits both files in the browser. Open `Games.txt` and `Videos.txt`
-(or start a new catalog), add, change or delete games and videos, and export
-each file again. The files are read and exported inside the page and never
-sent anywhere. Each change is also kept in this browser (IndexedDB), so the
-last edits come back on the next visit. That copy is temporary: the browser
-can delete it at any time, so export before you leave (the page warns if
-there are unexported changes). "Forget saved copy" removes it.
+`/studio/` edits the site's catalog in the browser. It opens the files the
+site is serving now (`Games.txt` and `Videos.txt`), so nothing needs to be
+picked. Add, change or delete games and videos. When you're done, click
+**Download catalog (.zip)**: it downloads both files in one archive. Upload
+the two files to the server yourself, which is what makes them live. Until
+then, the site keeps showing the old files.
+
+The editor reads the files and writes its download inside the page; nothing
+is sent anywhere. If the site's files can't be read, the editor says why and
+offers "Open" buttons, so the files can be picked by hand. Opening a file
+replaces what's on screen, after a warning if there are unsaved changes.
+Unsaved changes are also kept in this browser (IndexedDB), so they come back
+on the next visit. That copy is temporary: the browser can delete it at any
+time, so download before you leave. The page warns while there are changes
+that aren't downloaded. "Forget saved copy" removes the copy.
 
 - A video needs at least one game, picked from the games in the editor. The
   editor needs both files open, so the games are there to choose from.

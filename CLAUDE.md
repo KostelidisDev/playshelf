@@ -87,7 +87,7 @@ are in `src/test/`.
   Thumbnails are cached as they're viewed, not precached.
   The editor's worker (`/studio/sw.js`) precaches its own shell, listed by
   `studioShellFiles` from `dist/studio/index.html`. It never caches the
-  catalog: the editor reads files from disk, and its saved copy is in IndexedDB.
+  catalog: the editor fetches the live files from the site, uncached, and its saved copy of unsaved changes is in IndexedDB.
 - **Container**: read-only root filesystem, no capabilities, runs as
   www-data (uid 82) on port 8080. Site files stay root-owned. The catalog is
   a read-only custom mount (bind/NFS/CIFS). The container writes nothing but

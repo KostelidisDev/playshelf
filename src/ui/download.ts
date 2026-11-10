@@ -3,7 +3,16 @@
 
 /** Downloads `text` as a file called `name`, as UTF-8 plain text. */
 export function saveTextFile(name: string, text: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  saveFile(name, new Blob([text], { type: "text/plain;charset=utf-8" }));
+}
+
+/** Downloads `bytes` (of the given media type) as a file called `name`. */
+export function saveBytesFile(name: string, bytes: Uint8Array, type: string): void {
+  saveFile(name, new Blob([bytes as BlobPart], { type }));
+}
+
+function saveFile(name: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = name;

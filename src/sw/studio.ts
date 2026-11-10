@@ -1,10 +1,11 @@
 /* The catalog editor's service worker (dist/studio/sw.js, scope /studio/):
- * makes the editor installable and usable offline. The editor reads and
- * writes its files in the page itself, so the worker only keeps the editor's
- * own pages and files: its HTML, the hashed JS and CSS it loads and its icons,
- * precached on install (the list comes from dist/studio/index.html, see
- * build/shell.ts). The editor's saved copy of the catalog lives in IndexedDB,
- * which the worker never touches. Built by vite.studio-sw.config.ts, which
+ * makes the editor installable and usable offline. The editor fetches the
+ * site's live catalog in the page itself, and its download is made there too,
+ * so the worker only keeps the editor's own pages and files: its HTML, the
+ * hashed JS and CSS it loads and its icons, precached on install (the list
+ * comes from dist/studio/index.html, see build/shell.ts). It never caches the
+ * catalog (those requests go straight to the network). The editor's copy of
+ * unsaved changes lives in IndexedDB, which the worker never touches. Built by vite.studio-sw.config.ts, which
  * also fills in __STUDIO_SHELL__. */
 
 import { cacheFirst, networkFirst } from "./fetch.ts";

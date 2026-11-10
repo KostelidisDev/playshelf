@@ -1,8 +1,9 @@
-/* The catalog editor (served at /studio/): opens Games.txt and Videos.txt,
- * adds, changes or removes games and videos, and exports the files again.
- * The files are read and written in this page only; nothing is sent to a
- * server. Both files are needed to edit: a video is on games, so the games
- * have to be there to choose from. */
+/* The catalog editor (served at /studio/): loads the site's current Games.txt
+ * and Videos.txt, adds, changes or removes games and videos, and downloads
+ * the edited catalog for the admin to upload to the server. The files are
+ * read and written in this page only; nothing is sent to a server. Both
+ * files are needed to edit: a video is on games, so the games have to be
+ * there to choose from. */
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
@@ -39,9 +40,11 @@ import {
 } from "../lib/studio.ts";
 import { compareTitles, normalizeText, plural } from "../lib/text.ts";
 import { siteName } from "../ui/brand.ts";
-import { saveTextFile } from "../ui/download.ts";
+import { zipText } from "../lib/zip.ts";
+import { saveBytesFile, saveTextFile } from "../ui/download.ts";
 import { browserDraftStore, type Draft, type DraftStore } from "./draftStore.ts";
 import { GameForm } from "./GameForm.tsx";
+import { fetchLiveCatalog, MAX_FILE_BYTES, type LiveFiles, type LiveResult } from "./liveCatalog.ts";
 import { OpenButton, Pager, RowButtons } from "./StudioControls.tsx";
 import { RecordCard } from "./RecordCard.tsx";
 import { VideoForm } from "./VideoForm.tsx";
@@ -57,21 +60,33 @@ type Tab = "games" | "videos";
 
 /** Rows drawn at once in a list. */
 const PAGE_SIZE = 50;
-/** The largest file that can be a catalog file; anything bigger is the wrong file. */
-const MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** The download: both catalog files, in one archive, so the browser asks once. */
+const CATALOG_ARCHIVE = "catalog.zip";
 const NO_RECORDS: readonly never[] = [];
 /** The "form is open for a new row" marker. Ids can't contain "+", so it
  * can't be a game's or a video's id. */
 const NEW = "+new";
 const defaultDrafts = browserDraftStore();
+/** The site's files, as this page's address sees them. */
+const loadLiveDefault = () => fetchLiveCatalog(document.baseURI);
 
-/** `drafts` is where the saved copy is kept; the page's own is the default. */
-export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = {}) {
+interface StudioProps {
+  /** Where the unsaved changes are kept; the page's own store is the default. */
+  drafts?: DraftStore;
+  /** Reads the site's current files; the page's own fetch is the default. */
+  loadLive?: () => Promise<LiveResult>;
+}
+
+export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }: StudioProps = {}) {
   const [games, setGames] = useState<Slot<GameRecord> | null>(null);
   const [videos, setVideos] = useState<Slot<VideoRecord> | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
-  /** Whether this browser holds a copy of the files as they are now. */
+  /** Whether the site's files are still being read. */
+  const [loading, setLoading] = useState(true);
+  /** Why the site's files couldn't be opened, shown with the ways to open them by hand. */
+  const [liveError, setLiveError] = useState<string | null>(null);
+  /** Whether this browser holds a copy of the unsaved changes. */
   const [cached, setCached] = useState(false);
   /** Set once the user opens or starts a catalog, so a late restore doesn't replace it. */
   const touched = useRef(false);
@@ -84,48 +99,82 @@ export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = 
   const ready = games !== null && videos !== null;
   const dirty = (games?.dirty ?? false) || (videos?.dirty ?? false);
 
-  // Restores the saved copy, if there is one and nothing has been opened yet.
+  // Starts with the unsaved changes from the last visit, if there are any,
+  // otherwise with the site's current files. Nothing opened by hand is replaced.
   useEffect(() => {
     let cancelled = false;
-    void drafts.load().then((draft) => {
-      if (cancelled || draft === null || touched.current) return;
-      try {
-        const restoredGames = draft.games === null ? null : readGames(draft.games, GAMES_FILE);
-        const restoredVideos = draft.videos === null ? null : readVideos(draft.videos, VIDEOS_FILE);
-        if (restoredGames) setGames({ records: restoredGames.records, dirty: draft.gamesDirty });
-        if (restoredVideos) setVideos({ records: restoredVideos.records, dirty: draft.videosDirty });
-        if (restoredGames || restoredVideos) {
-          setCached(true);
-          setNotice("Restored your last edits from this browser.");
-        }
-      } catch {
-        setNotice("The saved copy in this browser couldn't be read, so it wasn't loaded.");
+    void (async () => {
+      const draft = await drafts.load();
+      if (cancelled || touched.current) return;
+      if (draft && (draft.gamesDirty || draft.videosDirty) && restoreDraft(draft)) {
+        setLoading(false);
+        return;
       }
-    });
+      const live = await loadLive();
+      if (cancelled || touched.current) return;
+      if (live.ok) openLive(live.files);
+      else setLiveError(live.error);
+      setLoading(false);
+    })();
     return () => {
       cancelled = true;
     };
   }, [drafts]);
 
-  // Every change is kept in this browser, so a page closed by mistake loses nothing.
+  // The unsaved changes are kept in this browser, so a page closed by mistake
+  // loses nothing. Once they're downloaded, or nothing has changed, the copy is dropped.
   useEffect(() => {
     if (!drafts.available || (games === null && videos === null)) return;
-    const draft: Draft = {
-      games: games ? toGamesFile(games.records) : null,
-      videos: videos ? toVideosFile(videos.records) : null,
-      gamesDirty: games?.dirty ?? false,
-      videosDirty: videos?.dirty ?? false,
-    };
+    const unsaved = (games?.dirty ?? false) || (videos?.dirty ?? false);
     let cancelled = false;
-    void drafts.save(draft).then((ok) => {
+    const written = unsaved
+      ? drafts.save({
+        games: games ? toGamesFile(games.records) : null,
+        videos: videos ? toVideosFile(videos.records) : null,
+        gamesDirty: games?.dirty ?? false,
+        videosDirty: videos?.dirty ?? false,
+      } satisfies Draft)
+      : drafts.clear();
+    void written.then((ok) => {
       if (cancelled) return;
-      setCached(ok);
-      if (!ok) setNotice("This browser won't keep a copy of the catalog. Export the files to keep your changes.");
+      setCached(unsaved && ok);
+      if (unsaved && !ok) setNotice("This browser won't keep a copy of the catalog. Download the catalog to keep your changes.");
     });
     return () => {
       cancelled = true;
     };
   }, [games, videos, drafts]);
+
+  /** Puts back the unsaved changes from the last visit. False when there is nothing usable. */
+  function restoreDraft(draft: Draft): boolean {
+    try {
+      const restoredGames = draft.games === null ? null : readGames(draft.games, GAMES_FILE);
+      const restoredVideos = draft.videos === null ? null : readVideos(draft.videos, VIDEOS_FILE);
+      if (!restoredGames && !restoredVideos) return false;
+      if (restoredGames) setGames({ records: restoredGames.records, dirty: draft.gamesDirty });
+      if (restoredVideos) setVideos({ records: restoredVideos.records, dirty: draft.videosDirty });
+      setCached(true);
+      setNotice("Restored your last edits from this browser.");
+      return true;
+    } catch {
+      setNotice("The saved copy in this browser couldn't be read, so it wasn't loaded.");
+      return false;
+    }
+  }
+
+  /** Opens the site's files as they are: nothing is unsaved yet. */
+  function openLive(files: LiveFiles) {
+    try {
+      const read = readGames(files.games, GAMES_FILE);
+      const readVids = readVideos(files.videos, VIDEOS_FILE);
+      const link = linkVideos(readVids.records, read.records);
+      setGames({ records: read.records, dirty: false });
+      setVideos({ records: link.videos, dirty: false });
+      setNotes(describe([...read.skipped, ...readVids.skipped, ...link.skipped]));
+    } catch (error) {
+      setLiveError(error instanceof CatalogFormatError ? error.message : "The site's catalog files couldn't be read.");
+    }
+  }
 
   async function forgetCopy() {
     if (!window.confirm("Forget the saved copy in this browser? Changes you haven't exported are lost.")) return;
@@ -305,6 +354,19 @@ export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = 
     if (editing === video.id) setEditing(null);
   }
 
+  // ---------- Download ----------
+
+  /** Downloads both files in one archive, the way the admin uploads them. */
+  function downloadCatalog() {
+    if (!games || !videos) return;
+    saveBytesFile(CATALOG_ARCHIVE, zipText([
+      { name: GAMES_FILE, text: toGamesFile(games.records) },
+      { name: VIDEOS_FILE, text: toVideosFile(videos.records) },
+    ]), "application/zip");
+    setGames({ records: games.records, dirty: false });
+    setVideos({ records: videos.records, dirty: false });
+  }
+
   // ---------- Export ----------
 
   function exportFile(kind: Tab) {
@@ -339,8 +401,9 @@ export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = 
           <div className="studio-actions">
             {ready && <OpenButton label={`Open ${GAMES_FILE}`} onFile={onFileChosen("games")} />}
             {ready && <OpenButton label={`Open ${VIDEOS_FILE}`} onFile={onFileChosen("videos")} />}
-            {games && <button className="btn" type="button" onClick={() => exportFile("games")}>Export {GAMES_FILE}</button>}
-            {videos && <button className="btn" type="button" onClick={() => exportFile("videos")}>Export {VIDEOS_FILE}</button>}
+            {ready && <button className="btn" type="button" onClick={downloadCatalog}>Download catalog (.zip)</button>}
+            {games && <button className="btn btn-secondary" type="button" onClick={() => exportFile("games")}>Export {GAMES_FILE}</button>}
+            {videos && <button className="btn btn-secondary" type="button" onClick={() => exportFile("videos")}>Export {VIDEOS_FILE}</button>}
           </div>
         )}
       </header>
@@ -348,11 +411,20 @@ export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = 
       <main className="studio-main">
         {notice && <p className="studio-notice" role="alert">{notice}</p>}
 
+        {dirty && (
+          <div className="studio-notice studio-unsaved">
+            <p>
+              You have changes that aren't downloaded yet. Download the catalog before you close this page, then upload
+              the two files to the server.
+            </p>
+          </div>
+        )}
+
         {cached && (
           <div className="studio-notice studio-cache">
             <p>
-              Your edits are kept in this browser, but only temporarily: the browser can delete them at any time.
-              Export both files to keep them.
+              Your changes are kept in this browser, but only temporarily: the browser can delete them at any time.
+              Download the catalog to keep them.
             </p>
             <button className="btn btn-secondary btn-small" type="button" onClick={forgetCopy}>Forget saved copy</button>
           </div>
@@ -504,11 +576,17 @@ export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = 
             <h2>Edit the catalog</h2>
             <p>
               The site reads two files: <strong>{GAMES_FILE}</strong>, the games, and <strong>{VIDEOS_FILE}</strong>, the
-              videos and the games each one is on. Open both to edit them, or start a new catalog.
+              videos and the games each one is on. The editor opens the files the site is using now.
             </p>
+            {loading && <p className="field-hint" role="status">Loading the catalog from the site…</p>}
+            {liveError && (
+              <p className="studio-notice">
+                The catalog couldn't be loaded from the site: {liveError} Open the files by hand, or start a new catalog.
+              </p>
+            )}
             <p>
-              Nothing is uploaded. The files stay in this page until you export them
-              {drafts.available && ", and a temporary copy is kept in this browser"}.
+              Nothing is uploaded. Download the catalog when you're done, then upload the two files to the server
+              yourself{drafts.available && ". Unsaved changes are kept in this browser until then"}.
             </p>
             <div className="studio-actions">
               <OpenButton label={`Open ${GAMES_FILE}`} primary={!games} onFile={onFileChosen("games")} />
