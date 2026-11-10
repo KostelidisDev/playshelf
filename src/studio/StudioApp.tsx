@@ -6,6 +6,10 @@
  * there to choose from. */
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Footer } from "../components/Footer.tsx";
+import { GamepadIcon, SearchIcon } from "../components/Icons.tsx";
+import { useHeaderHeight } from "../hooks/useHeaderHeight.ts";
+import { useScrolledFlag } from "../hooks/useScrolledFlag.ts";
 import {
   CatalogFormatError,
   GAMES_FILE,
@@ -95,6 +99,10 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
   const [page, setPage] = useState(1);
   /** The id of the row whose form is open, or NEW. Only the current tab's rows. */
   const [editing, setEditing] = useState<string | null>(null);
+  /** The app bar, measured so the content below it is offset the way the site's is. */
+  const header = useRef<HTMLElement>(null);
+  useHeaderHeight(header);
+  useScrolledFlag();
 
   const ready = games !== null && videos !== null;
   const dirty = (games?.dirty ?? false) || (videos?.dirty ?? false);
@@ -388,17 +396,75 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
 
   return (
     <div className="studio">
-      <header className="studio-bar">
-        <div className="studio-title">
-          <h1>{siteName()} Catalog editor</h1>
-          <p className="studio-status" role="status">
+      {/* The site's app bar: the brand, the status, and on the catalog the
+          tabs and search, as on the site's home page. */}
+      <header ref={header} className="appbar">
+        <div className="appbar-row">
+          {/* The page's heading, so the brand is the editor's title too. */}
+          <h1 className="studio-heading">
+            <a className="brand" href="../" aria-label={`Back to ${siteName()}`}>
+              <GamepadIcon />
+              <span className="brand-text">
+                <span>{siteName()}</span>{" "}
+                <span className="version">Catalog editor</span>
+              </span>
+            </a>
+          </h1>
+          <span className="status" role="status">
             {summary}
             {dirty && <span className="studio-dirty"> · unsaved changes</span>}
             {cached && <span> · copy kept in this browser</span>}
-          </p>
+          </span>
         </div>
+        {ready && (
+          <div className="toolbar">
+            <div className="studio-tabs" role="tablist" aria-label="Catalog">
+              <button
+                id="tab-games"
+                type="button"
+                role="tab"
+                aria-selected={tab === "games"}
+                aria-controls="studio-panel"
+                className={tab === "games" ? "studio-tab studio-tab-active" : "studio-tab"}
+                onClick={() => switchTab("games")}
+              >
+                Games <span className="studio-count">{gameList.length}</span>
+              </button>
+              <button
+                id="tab-videos"
+                type="button"
+                role="tab"
+                aria-selected={tab === "videos"}
+                aria-controls="studio-panel"
+                className={tab === "videos" ? "studio-tab studio-tab-active" : "studio-tab"}
+                onClick={() => switchTab("videos")}
+              >
+                Videos <span className="studio-count">{videoList.length}</span>
+              </button>
+            </div>
+            <label className="search">
+              <SearchIcon />
+              <span className="visually-hidden">Search</span>
+              <input
+                id="studio-search"
+                type="search"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
+                placeholder={tab === "games" ? "Title or game ID" : "Title, game or video ID"}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+          </div>
+        )}
+      </header>
+
+      <main id="main" className="main">
         {(games || videos) && (
-          <div className="studio-actions">
+          <div className="studio-actions studio-catalog-actions">
             {ready && <OpenButton label={`Open ${GAMES_FILE}`} onFile={onFileChosen("games")} />}
             {ready && <OpenButton label={`Open ${VIDEOS_FILE}`} onFile={onFileChosen("videos")} />}
             {ready && <button className="btn" type="button" onClick={downloadCatalog}>Download catalog (.zip)</button>}
@@ -406,9 +472,7 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
             {videos && <button className="btn btn-secondary" type="button" onClick={() => exportFile("videos")}>Export {VIDEOS_FILE}</button>}
           </div>
         )}
-      </header>
 
-      <main className="studio-main">
         {notice && <p className="studio-notice" role="alert">{notice}</p>}
 
         {dirty && (
@@ -442,47 +506,8 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
 
         {ready ? (
           <>
-            <div className="studio-tabs" role="tablist" aria-label="Catalog">
-              <button
-                id="tab-games"
-                type="button"
-                role="tab"
-                aria-selected={tab === "games"}
-                aria-controls="studio-panel"
-                className={tab === "games" ? "studio-tab studio-tab-active" : "studio-tab"}
-                onClick={() => switchTab("games")}
-              >
-                Games <span className="studio-count">{gameList.length}</span>
-              </button>
-              <button
-                id="tab-videos"
-                type="button"
-                role="tab"
-                aria-selected={tab === "videos"}
-                aria-controls="studio-panel"
-                className={tab === "videos" ? "studio-tab studio-tab-active" : "studio-tab"}
-                onClick={() => switchTab("videos")}
-              >
-                Videos <span className="studio-count">{videoList.length}</span>
-              </button>
-            </div>
-
             <section id="studio-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} aria-label={tab === "games" ? "Games" : "Videos"}>
               <div className="studio-toolbar">
-                <div className="studio-search field">
-                  <label htmlFor="studio-search" className="field-label">Search</label>
-                  <input
-                    id="studio-search"
-                    type="search"
-                    value={query}
-                    onChange={(event) => {
-                      setQuery(event.target.value);
-                      setPage(1);
-                    }}
-                    placeholder={tab === "games" ? "Title or game ID" : "Title, game or video ID"}
-                    autoComplete="off"
-                  />
-                </div>
                 <button className="btn" type="button" disabled={editing !== null} onClick={() => setEditing(NEW)}>
                   {tab === "games" ? "Add game" : "Add video"}
                 </button>
@@ -509,7 +534,7 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
               ) : (
                 <>
                   <Pager page={shown.page} pages={shown.pages} onPage={setPage} />
-                  <ul className="studio-grid">
+                  <ul className="grid studio-grid">
                     {tab === "games"
                       ? (shown.items as GameRecord[]).map((game) => (
                         editing === game.id ? (
@@ -598,6 +623,7 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 }
