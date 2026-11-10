@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Footer } from "../components/Footer.tsx";
-import { GamepadIcon, SearchIcon } from "../components/Icons.tsx";
+import { GamepadIcon, SearchIcon, VideoIcon, ZipIcon } from "../components/Icons.tsx";
 import { useHeaderHeight } from "../hooks/useHeaderHeight.ts";
 import { useScrolledFlag } from "../hooks/useScrolledFlag.ts";
 import {
@@ -49,7 +49,7 @@ import { saveBytesFile, saveTextFile } from "../ui/download.ts";
 import { browserDraftStore, type Draft, type DraftStore } from "./draftStore.ts";
 import { GameForm } from "./GameForm.tsx";
 import { fetchLiveCatalog, MAX_FILE_BYTES, type LiveFiles, type LiveResult } from "./liveCatalog.ts";
-import { OpenButton, Pager, RowButtons } from "./StudioControls.tsx";
+import { IconButton, IconOpenButton, OpenButton, Pager, RowButtons } from "./StudioControls.tsx";
 import { RecordCard } from "./RecordCard.tsx";
 import { VideoForm } from "./VideoForm.tsx";
 
@@ -62,8 +62,6 @@ interface Slot<T> {
 
 type Tab = "games" | "videos";
 
-/** Rows drawn at once in a list. */
-const PAGE_SIZE = 50;
 /** The download: both catalog files, in one archive, so the browser asks once. */
 const CATALOG_ARCHIVE = "catalog.zip";
 const NO_RECORDS: readonly never[] = [];
@@ -239,7 +237,8 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
   }, [videoList, query, gameTitles]);
 
   const matches = tab === "games" ? gameMatches : videoMatches;
-  const shown = paginate(matches, page, PAGE_SIZE);
+  // The same page size as the site, so full pages fill whole rows of the same grid.
+  const shown = paginate(matches, page);
 
   /** Opening a file, or starting a new catalog, replaces what's on screen,
    * so unexported changes get a chance to be kept first. */
@@ -464,12 +463,18 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
 
       <main id="main" className="main">
         {(games || videos) && (
-          <div className="studio-actions studio-catalog-actions">
-            {ready && <OpenButton label={`Open ${GAMES_FILE}`} onFile={onFileChosen("games")} />}
-            {ready && <OpenButton label={`Open ${VIDEOS_FILE}`} onFile={onFileChosen("videos")} />}
-            {ready && <button className="btn" type="button" onClick={downloadCatalog}>Download catalog (.zip)</button>}
-            {games && <button className="btn btn-secondary" type="button" onClick={() => exportFile("games")}>Export {GAMES_FILE}</button>}
-            {videos && <button className="btn btn-secondary" type="button" onClick={() => exportFile("videos")}>Export {VIDEOS_FILE}</button>}
+          <div className="studio-icon-bars">
+            {ready && (
+              <div className="icon-group" role="group" aria-label="Open">
+                <IconOpenButton label={`Open ${GAMES_FILE}`} icon={<GamepadIcon className="icon" />} tone="white" onFile={onFileChosen("games")} />
+                <IconOpenButton label={`Open ${VIDEOS_FILE}`} icon={<VideoIcon />} tone="white" onFile={onFileChosen("videos")} />
+              </div>
+            )}
+            <div className="icon-group" role="group" aria-label="Save">
+              {ready && <IconButton label="Download catalog (.zip)" icon={<ZipIcon />} tone="green" onClick={downloadCatalog} />}
+              {games && <IconButton label={`Export ${GAMES_FILE}`} icon={<GamepadIcon className="icon" />} tone="green" onClick={() => exportFile("games")} />}
+              {videos && <IconButton label={`Export ${VIDEOS_FILE}`} icon={<VideoIcon />} tone="green" onClick={() => exportFile("videos")} />}
+            </div>
           </div>
         )}
 
@@ -533,7 +538,6 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
                 </p>
               ) : (
                 <>
-                  <Pager page={shown.page} pages={shown.pages} onPage={setPage} />
                   <ul className="grid studio-grid">
                     {tab === "games"
                       ? (shown.items as GameRecord[]).map((game) => (
@@ -592,6 +596,7 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
                         )
                       ))}
                   </ul>
+                  <Pager info={shown} onPage={setPage} />
                 </>
               )}
             </section>

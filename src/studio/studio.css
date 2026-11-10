@@ -192,7 +192,8 @@
   margin: 0 0 16px;
 }
 
-/* The site's grid of cards: the columns come from style.css (`.grid`). */
+/* The site's grid of cards (`.grid`, style.css). A list, so only its
+   default margin and bullets are reset. */
 .studio-grid {
   margin: 0;
   padding: 0;
@@ -216,15 +217,21 @@
   overflow-wrap: anywhere;
 }
 
-.studio-pager {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin: 0 0 16px;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
+/* The site's pager buttons are links; as buttons they need the same reset. */
+.studio .pager-btn {
+  border: 0;
+  cursor: pointer;
+}
+
+/* Only the other pages are transparent: the current page keeps the site's
+   purple pill (style.css), which this rule would otherwise override. */
+.studio .pager-btn:not([aria-current="page"]) {
+  background: transparent;
+}
+
+.studio .pager-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .studio-empty {
@@ -391,4 +398,76 @@
   margin: 0;
   flex: none;
   accent-color: var(--primary);
+}
+
+/* ---------- Icon buttons: the catalog's open and save actions ---------- */
+
+/* Each group is a glass pill holding round icon buttons, like the site's
+   pager. */
+.studio-icon-bars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.icon-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 24px;
+  background: var(--glass-fill);
+  box-shadow: var(--glass-edge), 0 4px 14px rgb(0 0 0 / 0.3);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.icon-btn .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.icon-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Open buttons are white; save buttons are green, which reads on the
+   dark glass in both states. */
+.icon-btn-white {
+  color: #ffffff;
+}
+
+.icon-btn-green {
+  color: #81c995;
+}
+
+.icon-btn-green:hover:not(:disabled) {
+  color: #a8e6bb;
+  background: rgb(129 201 149 / 0.16);
+}
+
+.icon-group .file-button:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
