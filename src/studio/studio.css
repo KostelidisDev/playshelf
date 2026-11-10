@@ -12,7 +12,9 @@
 .studio-bar {
   position: sticky;
   top: 0;
-  z-index: 1;
+  /* Above the cards: their own inner layers reach z-index 1, and a tie goes
+     to whatever comes later in the page, so the cards would cover the bar. */
+  z-index: 10;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -244,7 +246,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 2px 10px;
-  margin-top: 0;
   font-size: 0.8rem;
   overflow-wrap: anywhere;
 }
