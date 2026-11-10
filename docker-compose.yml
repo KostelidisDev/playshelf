@@ -69,6 +69,29 @@ services:
       # strict-path@file is a shared policy from the Traefik stack: a static
       # site needs no encoded characters in its paths.
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.middlewares=strict-path@file"
+      # The catalog editor has a host of its own, so it installs as an app
+      # beside the site: a site installed on DOMAIN would take /studio/ into
+      # its own app. The editor's pages and the files they load are served on
+      # EDITOR_DOMAIN; anything else there goes to /studio/. /studio/ on DOMAIN
+      # moves to the editor's host.
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.rule=Host(`${EDITOR_DOMAIN:?EDITOR_DOMAIN is required}`) && (PathPrefix(`/studio/`) || PathPrefix(`/assets/`))"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.entrypoints=websecure"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.service=${INSTANCE_NAME:-playshelf}"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.middlewares=strict-path@file"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.rule=Host(`${EDITOR_DOMAIN}`)"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.entrypoints=websecure"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.service=${INSTANCE_NAME:-playshelf}"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.middlewares=${INSTANCE_NAME:-playshelf}-to-editor"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.rule=Host(`${DOMAIN}`) && PathPrefix(`/studio/`)"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.entrypoints=websecure"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.service=${INSTANCE_NAME:-playshelf}"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.middlewares=${INSTANCE_NAME:-playshelf}-studio-moved"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-to-editor.redirectregex.regex=^https?://[^/]+/.*"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-to-editor.redirectregex.replacement=https://${EDITOR_DOMAIN}/studio/"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-to-editor.redirectregex.permanent=true"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-studio-moved.redirectregex.regex=^https?://[^/]+/studio/(.*)$"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-studio-moved.redirectregex.replacement=https://${EDITOR_DOMAIN}/studio/$$1"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-studio-moved.redirectregex.permanent=true"
       # Service
       - "traefik.http.services.${INSTANCE_NAME:-playshelf}.loadbalancer.server.port=8080"
 

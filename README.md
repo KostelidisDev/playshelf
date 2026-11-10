@@ -9,7 +9,8 @@ description are set at runtime.
 - Browse every game alphabetically, including those with no videos yet,
   search (accent-insensitive), and watch a game's videos, newest first. A
   video can be on several games.
-- Works offline once visited, and installs as an app (PWA).
+- Works offline once visited, and installs as an app (PWA). The catalog
+  editor installs too, and works offline once visited.
 - No backend: the whole catalog is two CSV files, Games.txt and Videos.txt.
 - On October 31 the site dresses up for Halloween, jump scare and shriek
   included; typing `boo` anywhere outside a text field toggles it on any
@@ -172,7 +173,7 @@ Dockerfile. Build arguments:
 
 | Variable           | Default                         | Shown in                                      |
 | ------------------ | ------------------------------- | --------------------------------------------- |
-| `SITE_NAME`        | `PlayShelf`                     | Page title, app bar, installed app.           |
+| `SITE_NAME`        | `PlayShelf`                     | Page title, app bar, installed app; the catalog editor is "<name> Catalog editor". |
 | `SITE_DESCRIPTION` | "A hand-picked collection of …" | Search results, link previews, installed app. |
 
 `index.html` and `manifest.webmanifest` contain `__SITE_NAME__` and
@@ -202,6 +203,16 @@ docker compose -f docker-compose.basic-auth.yml up -d
 ```
 
 `PLAYSHELF_AUTH` is only read by `docker-compose.basic-auth.yml`.
+
+### The catalog editor's host
+
+The catalog editor is served on its own host, `EDITOR_DOMAIN`, so that it
+installs as an app beside the site. (An app installed from `DOMAIN` covers
+`/studio/` too, so Chrome would open the site's app for the editor instead.)
+Traefik routes both hosts to the same container: `EDITOR_DOMAIN` serves the
+editor's pages and the files they load, sends any other path to `/studio/`,
+and `/studio/` on `DOMAIN` moves to the editor's host. Point DNS for
+`EDITOR_DOMAIN` at the same Traefik, and make sure its certificate covers it.
 
 ### Volumes
 
@@ -278,7 +289,7 @@ src/components/        React components (and, in halloween/, the Halloween artwo
 src/hooks/             React hooks
 src/lib/               Pure logic: catalog and CSV parsing, routing, pagination, text, the editor's rules, Halloween date and spell
 src/studio/            The catalog editor at /studio/
-src/sw/                Service worker (offline support)
+src/sw/                Service workers (offline support): the site's, and the catalog editor's
 src/ui/                Browser helpers: brand, version, tint, SW registration, Halloween shriek
 studio/                The catalog editor's HTML entry (a second page of the same build)
 site.conf              Apache config: headers, caching, site settings, demo catalog

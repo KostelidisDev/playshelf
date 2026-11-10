@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && vite build --config vite.sw.config.ts",
+    "build": "tsc -b && vite build && vite build --config vite.sw.config.ts && vite build --config vite.studio-sw.config.ts",
     "preview": "vite preview",
     "standalone": "node build/standalone.ts",
     "typecheck": "tsc -b",

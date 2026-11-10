@@ -38,6 +38,7 @@ import {
   type VideoField,
 } from "../lib/studio.ts";
 import { normalizeText, plural } from "../lib/text.ts";
+import { siteName } from "../ui/brand.ts";
 import { browserDraftStore, type Draft, type DraftStore } from "./draftStore.ts";
 import { GameForm } from "./GameForm.tsx";
 import { RecordCard } from "./RecordCard.tsx";
@@ -325,7 +326,7 @@ export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = 
     <div className="studio">
       <header className="studio-bar">
         <div className="studio-title">
-          <h1>Catalog editor</h1>
+          <h1>{siteName()} Catalog editor</h1>
           <p className="studio-status" role="status">
             {summary}
             {dirty && <span className="studio-dirty"> · unsaved changes</span>}

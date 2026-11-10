@@ -372,3 +372,18 @@ describe("StudioApp: the saved copy in this browser", () => {
     expect(screen.queryByText(/kept in this browser, but only temporarily/)).not.toBeInTheDocument();
   });
 });
+
+describe("StudioApp: the name", () => {
+  it("titles the editor with the site's name, from the page's application-name", () => {
+    const meta = document.createElement("meta");
+    meta.name = "application-name";
+    meta.content = "Test Site";
+    document.head.append(meta);
+    try {
+      renderEditor();
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Test Site Catalog editor");
+    } finally {
+      meta.remove();
+    }
+  });
+});

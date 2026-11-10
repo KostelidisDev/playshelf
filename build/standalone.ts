@@ -13,7 +13,7 @@
 
 import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
-import { fillHtml, fillJson, siteSettings, type SiteSettings } from "./site.ts";
+import { MANIFEST_FILES, PAGE_FILES, fillHtml, fillJson, siteSettings, type SiteSettings } from "./site.ts";
 
 /** site.conf as logical lines: continuations joined, runs of spaces
  * collapsed, trimmed. */
@@ -110,7 +110,11 @@ export function buildStandalone(distDir: string, outDir: string, site: SiteSetti
     filter: (source) => shipped(relative(dist, source).split(sep).join("/")),
   });
 
-  for (const [file, fill] of [["index.html", fillHtml], ["manifest.webmanifest", fillJson]] as const) {
+  const filled = [
+    ...PAGE_FILES.map((file) => [file, fillHtml] as const),
+    ...MANIFEST_FILES.map((file) => [file, fillJson] as const),
+  ];
+  for (const [file, fill] of filled) {
     const path = join(out, file);
     const text = fill(readFileSync(path, "utf8"), site);
     if (text.includes("__SITE_")) throw new Error(`Unfilled placeholder left in ${file}`);

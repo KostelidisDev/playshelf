@@ -36,3 +36,34 @@ export function cacheKey(requestUrl: string): string {
 export function cacheable(response: Pick<Response, "ok" | "status" | "type" | "redirected">): boolean {
   return response.ok && response.status === 200 && response.type === "basic" && !response.redirected;
 }
+
+// ---------- The catalog editor (/studio/) ----------
+
+/** The editor's worker (studio.ts) names its cache with this prefix. The two
+ * workers share the origin's caches, so each one clears only its own old
+ * caches: the site's worker leaves these alone, and the editor's leaves the
+ * site's. */
+export const STUDIO_CACHE_PREFIX = "studio-shell-";
+
+/** The caches to delete when a worker activates: the old ones of its own
+ * kind. `current` are the names it still uses. */
+export function staleCaches(keys: readonly string[], current: ReadonlySet<string>, owner: "site" | "studio"): string[] {
+  return keys.filter((key) => {
+    if (current.has(key)) return false;
+    const isStudio = key.startsWith(STUDIO_CACHE_PREFIX);
+    return owner === "studio" ? isStudio : !isStudio;
+  });
+}
+
+/** How the editor's worker answers a request, where `scope` is its folder
+ * (https://site/studio/). Its own pages and their files are answered; the
+ * site's hashed app files and icons, which the editor also loads, are
+ * cache-first. Everything else is left to the network. */
+export function studioStrategyFor(request: { method: string; mode: string; url: string }, scope: string): Strategy {
+  if (request.method !== "GET") return { kind: "ignore" };
+  const url = new URL(request.url).href;
+  if (url.startsWith(scope)) return request.mode === "navigate" ? { kind: "navigate" } : { kind: "network-first" };
+  const root = new URL("../", scope).href;
+  if (url.startsWith(`${root}assets/app/`) || url.startsWith(`${root}assets/icons/`)) return { kind: "cache-first" };
+  return { kind: "ignore" };
+}

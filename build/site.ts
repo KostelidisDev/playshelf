@@ -6,7 +6,7 @@
  * itself never contains a site's name or description. */
 
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import type { Connect, Plugin } from "vite";
 
 export const DEFAULT_SITE_NAME = "PlayShelf";
@@ -16,6 +16,11 @@ export interface SiteSettings {
   name: string;
   description: string;
 }
+
+/** The pages that carry the site's name: the app's and the catalog editor's. */
+export const PAGE_FILES = ["index.html", "studio/index.html"] as const;
+/** The web manifests that carry it: the app's and the catalog editor's. */
+export const MANIFEST_FILES = ["manifest.webmanifest", "studio/manifest.webmanifest"] as const;
 
 const PLACEHOLDERS: Record<string, keyof SiteSettings> = {
   __SITE_NAME__: "name",
@@ -56,19 +61,20 @@ export function fillJson(json: string, site: SiteSettings): string {
   return fill(json, site, (value) => JSON.stringify(value).slice(1, -1));
 }
 
-/** Serves the web manifest from `dir` with the settings filled in, and
- * index.html too when `html` is set. */
+/** Serves the web manifests from `dir` with the settings filled in, and the
+ * pages too when `html` is set. A folder's page is its index.html. */
 function fillMiddleware(dir: string, site: SiteSettings, html: boolean): Connect.NextHandleFunction {
   return (req, res, next) => {
     const path = new URL(req.url ?? "/", "http://localhost").pathname;
-    const file = path === "/" ? "index.html" : path.slice(1);
-    const isManifest = file === "manifest.webmanifest";
-    if (!isManifest && !(html && file === "index.html")) return next();
+    const file = path.endsWith("/") ? `${path.slice(1)}index.html` : path.slice(1);
+    const isManifest = basename(file) === "manifest.webmanifest";
+    if (!isManifest && !(html && basename(file) === "index.html")) return next();
+    // A file that isn't there goes on to the server's own handling (a 404).
     readFile(join(dir, file), "utf8").then((text) => {
       res.setHeader("Content-Type", isManifest ? "application/manifest+json" : "text/html; charset=utf-8");
       res.setHeader("Cache-Control", "no-cache");
       res.end(isManifest ? fillJson(text, site) : fillHtml(text, site));
-    }, next);
+    }, () => next());
   };
 }
 

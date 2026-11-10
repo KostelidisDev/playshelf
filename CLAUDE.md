@@ -30,11 +30,14 @@ also check it in `npm run preview` or a built image.
   No DOM, no network. Keep it that way, so it stays unit-testable.
 - `src/components/`, `src/hooks/`: React UI.
 - `studio/`, `src/studio/`: the catalog editor at `/studio/`, a second page
-  of the same build (its own HTML entry, no service worker). Its rules are
-  in `src/lib/studio.ts`, and it shares the file rules in `src/lib/catalog.ts`.
+  of the same build (its own HTML entry, manifest and service worker, scoped
+  to /studio/). Its rules are in `src/lib/studio.ts`, and it shares the file
+  rules in `src/lib/catalog.ts`.
 - `src/ui/`: browser helpers (brand, tint, version, SW registration, and the
   Halloween shriek's sound).
-- `src/sw/`: the service worker, built separately (`vite.sw.config.ts`).
+- `src/sw/`: the service workers, built separately: the site's `sw.ts`
+  (`vite.sw.config.ts`) and the editor's `studio.ts` (`vite.studio-sw.config.ts`,
+  output in `dist/studio/`). `fetch.ts` holds the fetch helpers both share.
   `strategy.ts` holds its pure, tested parts.
 - `build/`: build-time helpers used by the Vite configs (CSP, shell file
   list, version, site settings), and `standalone.ts`, which turns dist/
@@ -57,8 +60,10 @@ are in `src/test/`.
   0`), and images only from `'self'` and `i.ytimg.com`. Any new external
   origin needs a CSP change, and a good reason.
 - **Site settings**: the build is brand-neutral. `index.html` and the web
-  manifest carry `__SITE_NAME__` and `__SITE_DESCRIPTION__`, filled in at
-  serve time (Apache in the container, `build/site.ts` locally), escaped by
+  manifest carry `__SITE_NAME__` and `__SITE_DESCRIPTION__`, and so do the
+  catalog editor's page and manifest (`studio/index.html`,
+  `studio/manifest.webmanifest`, named "<name> Catalog editor"). They're
+  filled in at serve time (Apache in the container, `build/site.ts` locally), escaped by
   `docker-entrypoint.sh`. Never bake a name or description into the build;
   only the standalone sites (`build/standalone.ts`) fill them in, after it.
 - **Catalog**: two CSVs, `assets/api/Games.txt` (game_id, title) and
@@ -79,6 +84,9 @@ are in `src/test/`.
   `build/shell.ts` (the hashed app build plus its `ALWAYS` list); a new
   static file outside `assets/app/` probably belongs in that list.
   Thumbnails are cached as they're viewed, not precached.
+  The editor's worker (`/studio/sw.js`) precaches its own shell, listed by
+  `studioShellFiles` from `dist/studio/index.html`. It never caches the
+  catalog: the editor reads files from disk, and its saved copy is in IndexedDB.
 - **Container**: read-only root filesystem, no capabilities, runs as
   www-data (uid 82) on port 8080. Site files stay root-owned. The catalog is
   a read-only custom mount (bind/NFS/CIFS). The container writes nothing but

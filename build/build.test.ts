@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { sitePolicy } from "./csp.ts";
-import { shellFiles } from "./shell.ts";
+import { shellFiles, studioShellFiles } from "./shell.ts";
 import { DEFAULT_SITE_DESCRIPTION, DEFAULT_SITE_NAME, fillHtml, fillJson, siteSettings } from "./site.ts";
 import { buildStandalone, htaccess } from "./standalone.ts";
 import { appVersion } from "./version.ts";
@@ -35,6 +35,50 @@ describe("shellFiles", () => {
     dir = (mkdirSync(TMP, { recursive: true }), mkdtempSync(join(TMP, "shell-")));
     mkdirSync(join(dir, "assets/app"), { recursive: true });
     expect(() => shellFiles(dir)).toThrow("No app build");
+  });
+});
+
+describe("studioShellFiles", () => {
+  let dir = "";
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("lists the editor's page, the hashed files its HTML loads, and its icons, relative to /studio/", () => {
+    dir = (mkdirSync(TMP, { recursive: true }), mkdtempSync(join(TMP, "studio-shell-")));
+    mkdirSync(join(dir, "studio"), { recursive: true });
+    writeFileSync(join(dir, "studio/index.html"), [
+      '<link rel="icon" href="../assets/icons/icon.svg">',
+      '<script type="module" src="../assets/app/studio-abc.js"></script>',
+      '<link rel="modulepreload" href="../assets/app/style-def.js">',
+      '<link rel="stylesheet" href="../assets/app/studio-ghi.css">',
+    ].join("\n"));
+    const files = studioShellFiles(dir);
+    expect(files).toEqual(expect.arrayContaining(["./", "manifest.webmanifest", "../assets/app/studio-abc.js", "../assets/app/studio-ghi.css"]));
+    // The icon is listed once, though both the page and the list name it.
+    expect(files.filter((file) => file === "../assets/icons/icon.svg")).toHaveLength(1);
+  });
+
+  it("fails without an editor build", () => {
+    dir = (mkdirSync(TMP, { recursive: true }), mkdtempSync(join(TMP, "studio-shell-")));
+    mkdirSync(join(dir, "studio"), { recursive: true });
+    writeFileSync(join(dir, "studio/index.html"), "<p></p>");
+    expect(() => studioShellFiles(dir)).toThrow("No editor build");
+  });
+});
+
+describe("studio manifest", () => {
+  it("has its own id, apart from the site's, so Chrome installs it as its own app", () => {
+    const manifest = JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/studio/manifest.webmanifest"), "utf8")) as { id: string };
+    const site = JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/manifest.webmanifest"), "utf8")) as { id: string };
+    // Chrome resolves a relative id against the site root, so "./" here would
+    // be the site's own id. An absolute path is the editor's alone.
+    expect(manifest.id).toBe("/studio/");
+    expect(manifest.id).not.toBe(site.id);
+  });
+
+  it("names only icons that exist, as the editor's page sees them", () => {
+    const manifest = JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/studio/manifest.webmanifest"), "utf8")) as { icons: { src: string }[] };
+    const root = resolve(import.meta.dirname, "../public/studio");
+    for (const icon of manifest.icons) expect(existsSync(resolve(root, icon.src)), icon.src).toBe(true);
   });
 });
 
@@ -95,6 +139,10 @@ describe("standalone build", () => {
     for (const sub of ["assets/api", "assets/thumbnails", "assets/demo", "assets/app"]) mkdirSync(join(dist, sub), { recursive: true });
     writeFileSync(join(dist, "index.html"), '<title>__SITE_NAME__</title><meta content="__SITE_DESCRIPTION__">');
     writeFileSync(join(dist, "manifest.webmanifest"), '{"name":"__SITE_NAME__","description":"__SITE_DESCRIPTION__"}');
+    // The catalog editor's page and manifest carry the name too.
+    mkdirSync(join(dist, "studio"));
+    writeFileSync(join(dist, "studio/index.html"), '<title>__SITE_NAME__ Catalog editor</title><meta content="__SITE_DESCRIPTION__">');
+    writeFileSync(join(dist, "studio/manifest.webmanifest"), '{"name":"__SITE_NAME__ Catalog editor"}');
     for (const file of ["assets/api/Games.txt", "assets/api/Videos.txt", "assets/api/.gitkeep", "assets/thumbnails/abcdefghijk.webp", "assets/demo/Videos.txt", "assets/app/index-abc.js", ".DS_Store"]) {
       writeFileSync(join(dist, file), "");
     }
@@ -103,6 +151,8 @@ describe("standalone build", () => {
 
     expect(readFileSync(join(out, "index.html"), "utf8")).toBe('<title>A &amp; B</title><meta content="Say &quot;hi&quot;">');
     expect(JSON.parse(readFileSync(join(out, "manifest.webmanifest"), "utf8"))).toEqual({ name: "A & B", description: 'Say "hi"' });
+    expect(readFileSync(join(out, "studio/index.html"), "utf8")).toBe('<title>A &amp; B Catalog editor</title><meta content="Say &quot;hi&quot;">');
+    expect(JSON.parse(readFileSync(join(out, "studio/manifest.webmanifest"), "utf8"))).toEqual({ name: "A & B Catalog editor" });
     expect(readFileSync(join(out, ".htaccess"), "utf8")).toContain("Content-Security-Policy");
     expect(existsSync(join(out, "assets/demo/Videos.txt"))).toBe(true);
     expect(existsSync(join(out, "assets/app/index-abc.js"))).toBe(true);
