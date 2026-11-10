@@ -1,7 +1,7 @@
 import { useCallback } from "react";
-import { videoImages, videoUrl, type Game } from "../lib/catalog.ts";
 import { paginate } from "../lib/pagination.ts";
 import { gameUrl } from "../lib/routes.ts";
+import { videoUrl, type Game } from "../lib/videos.ts";
 import { AppLink } from "./AppLink.tsx";
 import { Card } from "./Card.tsx";
 import { Message } from "./Message.tsx";
@@ -18,21 +18,13 @@ interface Props {
 
 /** One game's videos, newest first. Each card opens its video on YouTube. */
 export function GameView({ game, page, onPage, onHome }: Props) {
-  const id = game?.id ?? "";
-  const urlFor = useCallback((p: number) => gameUrl(id, p), [id]);
+  const key = game?.key ?? "";
+  const urlFor = useCallback((p: number) => gameUrl(key, p), [key]);
 
   return (
     <>
       <h1 className="page-title">{game ? game.title : "Game not found"}</h1>
-      {!game ? (
-        <Message text="There's no game with that name.">
-          <AppLink className="btn" href="./" onNavigate={onHome}>All games</AppLink>
-        </Message>
-      ) : game.videos.length === 0 ? (
-        <Message text="There are no videos for this game yet.">
-          <AppLink className="btn" href="./" onNavigate={onHome}>All games</AppLink>
-        </Message>
-      ) : (
+      {game ? (
         <PagedGrid
           page={paginate(game.videos, page)}
           urlFor={urlFor}
@@ -41,14 +33,18 @@ export function GameView({ game, page, onPage, onHome }: Props) {
             <Card
               key={video.id}
               href={videoUrl(video)}
+              video={video}
               title={video.title}
               meta={video.publishedAt ? dateFormat.format(video.publishedAt) : ""}
               variant="video"
-              images={videoImages(video)}
               external
             />
           )}
         />
+      ) : (
+        <Message text="There are no videos for this game.">
+          <AppLink className="btn" href="./" onNavigate={onHome}>All games</AppLink>
+        </Message>
       )}
     </>
   );

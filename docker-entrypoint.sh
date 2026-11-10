@@ -1,7 +1,8 @@
 #!/bin/sh
 # The container's entrypoint. It escapes SITE_NAME and SITE_DESCRIPTION for
 # HTML and for JSON (Apache can't), for site.conf to put into index.html and
-# the web manifest as they're served. Then it runs the given command
+# the web manifest as they're served. Then it starts the thumbnail sync in
+# the background, unless THUMBNAILS_SYNC=false, and runs the given command
 # (httpd-foreground by default).
 #
 # Both forms also escape "|" (the Substitute delimiter) and "\", so a value
@@ -38,25 +39,10 @@ SITE_NAME_HTML=$(html "$name")
 SITE_NAME_JSON=$(json "$name")
 SITE_DESCRIPTION_HTML=$(html "$description")
 SITE_DESCRIPTION_JSON=$(json "$description")
+export SITE_NAME_HTML SITE_NAME_JSON SITE_DESCRIPTION_HTML SITE_DESCRIPTION_JSON
 
-# SITE_URL is required: the site's root address, http or https, with no
-# query or fragment, which gets a trailing slash. The link tags that need it
-# (canonical, og:url, og:image) are built here, on one line, with single
-# quotes, as site.conf's Substitute directive needs them (build/site.ts
-# makes the same ones for the local builds).
-url=$(printf '%s' "${SITE_URL:-}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-if [ -z "$url" ]; then
-  echo "SITE_URL must be set to the site's address, e.g. https://games.example.com" >&2
-  exit 1
+if [ "${THUMBNAILS_SYNC:-true}" != false ]; then
+  sync-thumbnails.sh &
 fi
-if ! printf '%s' "$url" | grep -Eq '^https?://[^[:space:]"<>|$\\?#]+$'; then
-  echo "SITE_URL must be an http or https address of the site's root, e.g. https://games.example.com" >&2
-  exit 1
-fi
-url="$(printf '%s' "$url" | sed -e 's:/*$::')/"
-root=$(html "$url")
-image="${root}assets/icons/icon-512.png"
-SITE_LINKS_HTML="<link rel='canonical' href='$root'> <meta property='og:url' content='$root'> <meta property='og:image' content='$image'> <meta property='og:image:width' content='512'> <meta property='og:image:height' content='512'> <meta name='twitter:image' content='$image'>"
-export SITE_NAME_HTML SITE_NAME_JSON SITE_DESCRIPTION_HTML SITE_DESCRIPTION_JSON SITE_LINKS_HTML
 
 exec "$@"

@@ -2,7 +2,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HistoryRouter } from "../lib/history.ts";
-import type { Catalog } from "../lib/catalog.ts";
+import type { GameCatalog } from "../lib/videos.ts";
 import { makeCatalog, makeVideo } from "../test/fixtures.ts";
 import { App } from "./App.tsx";
 
@@ -12,7 +12,7 @@ afterEach(() => {
   router = null;
 });
 
-async function renderApp(catalog: Catalog | (() => Promise<Catalog>), url = "/") {
+async function renderApp(catalog: GameCatalog | (() => Promise<GameCatalog>), url = "/") {
   window.history.replaceState(null, "", url);
   router = new HistoryRouter();
   const load = typeof catalog === "function" ? catalog : () => Promise.resolve(catalog);
@@ -26,7 +26,7 @@ const status = () => screen.getByRole("status").textContent;
 
 describe("App: home view", () => {
   it("shows skeletons while loading, then the first page of games", async () => {
-    let resolve!: (catalog: Catalog) => void;
+    let resolve!: (catalog: GameCatalog) => void;
     await renderApp(() => new Promise((r) => { resolve = r; }));
     expect(status()).toBe("Loading…");
     expect(document.querySelectorAll(".card.skeleton")).toHaveLength(16);
@@ -139,30 +139,6 @@ describe("App: home view", () => {
   });
 });
 
-describe("App: games without videos", () => {
-  it("lists every game, including those with no videos yet", async () => {
-    await renderApp(makeCatalog(2, [makeVideo("Apex")]));
-    await screen.findByText("Apex");
-    expect(cardTitles()).toEqual(["Apex", "Game 01", "Game 02"]);
-    const metas = [...document.querySelectorAll(".card-meta")].map((el) => el.textContent);
-    expect(metas).toEqual(["1 video", "No videos yet", "No videos yet"]);
-  });
-
-  it("says so on the page of a game with no videos", async () => {
-    const { user } = await renderApp(makeCatalog(1), "/?g=game-01");
-    expect(await screen.findByRole("heading", { name: "Game 01" })).toBeInTheDocument();
-    expect(screen.getByText("There are no videos for this game yet.")).toBeInTheDocument();
-    await user.click(screen.getByRole("link", { name: "All games" }));
-    expect(cardTitles()).toEqual(["Game 01"]);
-  });
-
-  it("shows a video on each game it belongs to", async () => {
-    const { user } = await renderApp(makeCatalog(0, [makeVideo(["Apex", "Zelda"], { title: "Crossover" })]));
-    await user.click(await screen.findByRole("link", { name: /Zelda/ }));
-    expect(cardTitles()).toEqual(["Crossover"]);
-  });
-});
-
 describe("App: game view", () => {
   it("opens a game from its card, newest video first, and goes back to the grid", async () => {
     const backSpy = vi.spyOn(window.history, "go");
@@ -173,7 +149,7 @@ describe("App: game view", () => {
     const { user } = await renderApp(catalog);
     await user.click(await screen.findByRole("link", { name: /Clair Obscur: Expedition 33/ }));
 
-    expect(window.location.search).toBe("?g=clair-obscur-expedition-33");
+    expect(window.location.search).toBe("?g=Clair+Obscur%3A+Expedition+33");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Clair Obscur: Expedition 33");
     expect(cardTitles()).toEqual(["Newer", "Older"]);
     expect(status()).toBe("2 videos");
@@ -195,14 +171,14 @@ describe("App: game view", () => {
     const { user } = await renderApp(makeCatalog(1, videos));
     await user.click(await screen.findByRole("link", { name: /Long/ }));
     await user.click(screen.getByRole("link", { name: "Page 2" }));
-    expect(window.location.search).toBe("?g=long&p=2");
+    expect(window.location.search).toBe("?g=Long&p=2");
     expect(cardTitles()).toHaveLength(4);
     await user.click(screen.getByRole("link", { name: "Back to all games" }));
     expect(backSpy).toHaveBeenCalledWith(-2);
   });
 
   it("opened directly, the back arrow goes to the home grid", async () => {
-    const { user } = await renderApp(makeCatalog(2), "/?g=game-02");
+    const { user } = await renderApp(makeCatalog(2), "/?g=Game 02");
     await screen.findByRole("heading", { name: "Game 02" });
     await user.click(screen.getByRole("link", { name: "Back to all games" }));
     expect(window.location.search).toBe("");
@@ -212,7 +188,7 @@ describe("App: game view", () => {
   it("shows a message for an unknown game", async () => {
     const { user } = await renderApp(makeCatalog(2), "/?g=Nope");
     expect(await screen.findByRole("heading", { name: "Game not found" })).toBeInTheDocument();
-    expect(screen.getByText("There's no game with that name.")).toBeInTheDocument();
+    expect(screen.getByText("There are no videos for this game.")).toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: "All games" }));
     expect(cardTitles()).toHaveLength(2);
   });

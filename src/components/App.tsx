@@ -8,11 +8,11 @@ import type { HistoryRouter } from "../lib/history.ts";
 import { paginate } from "../lib/pagination.ts";
 import { homeUrl, parseRoute, type RouteState } from "../lib/routes.ts";
 import { plural } from "../lib/text.ts";
-import type { Catalog } from "../lib/catalog.ts";
+import type { GameCatalog } from "../lib/videos.ts";
 import { AppBar, BRAND } from "./AppBar.tsx";
 import { Footer } from "./Footer.tsx";
 import { GameView } from "./GameView.tsx";
-import { HalloweenGate } from "./HalloweenGate.tsx";
+import { Halloween } from "./Halloween.tsx";
 import { HomeView } from "./HomeView.tsx";
 import { LetterStrip } from "./LetterStrip.tsx";
 import { Message } from "./Message.tsx";
@@ -29,7 +29,7 @@ export function App({ router, loadCatalog }: Props) {
   const route = useMemo(() => parseRoute(location.search), [location.search]);
   const [catalogState, retry] = useCatalog(loadCatalog);
   const catalog = catalogState.status === "ready" ? catalogState.catalog : null;
-  const view = route.gameId === null ? "home" : "game";
+  const view = route.gameKey === null ? "home" : "game";
   useScrolledFlag();
 
   // ---------- Navigation ----------
@@ -79,7 +79,7 @@ export function App({ router, loadCatalog }: Props) {
     () => (catalog && view === "home" ? paginate(catalog.filter(route.query, route.letter), route.page) : null),
     [catalog, view, route.query, route.letter, route.page],
   );
-  const game = catalog && route.gameId !== null ? catalog.get(route.gameId) : null;
+  const game = catalog && route.gameKey !== null ? catalog.get(route.gameKey) : null;
   const status = statusText(catalogState.status, catalog, homePage?.total ?? 0, view, game);
   const title = view === "home" ? BRAND : `${game ? game.title : "Game not found"} — ${BRAND}`;
 
@@ -116,14 +116,14 @@ export function App({ router, loadCatalog }: Props) {
       </AppBar>
       <main id="main" className="main">{content}</main>
       <Footer />
-      <HalloweenGate />
+      <Halloween />
     </div>
   );
 }
 
 function statusText(
   loading: "loading" | "ready" | "error",
-  catalog: Catalog | null,
+  catalog: GameCatalog | null,
   shown: number,
   view: "home" | "game",
   game: { videos: readonly unknown[] } | null,

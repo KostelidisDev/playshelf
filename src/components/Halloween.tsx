@@ -47,16 +47,13 @@ interface Props {
   shriek?: () => void;
   /** For tests: a number in [0, 1) that picks the mask of the scare. */
   random?: () => number;
-  /** Set by HalloweenGate when "boo" was typed before this component
-   * loaded: the spell is applied on mount, as if it had been typed here. */
-  toggleOnMount?: boolean;
 }
 
 function wantsLessMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
-export function Halloween({ now = () => new Date(), shriek = defaultShriek, random = Math.random, toggleOnMount = false }: Props) {
+export function Halloween({ now = () => new Date(), shriek = defaultShriek, random = Math.random }: Props) {
   const [on, setOn] = useState(() => isHalloween(now()));
   /** The mask of the scare in progress, if any. */
   const [scaring, setScaring] = useState<string | null>(null);
@@ -71,25 +68,16 @@ export function Halloween({ now = () => new Date(), shriek = defaultShriek, rand
     shriek();
   };
 
-  const toggle = () => {
-    if (!on) scare();
-    setOn(!on);
-    setBleeding(!on);
-  };
-
   useDocumentKeydown((event) => {
     if (!isShortcutKey(event)) return;
     typed.current = nextSpell(typed.current, event.key);
     if (typed.current === SPELL) {
       typed.current = "";
-      toggle();
+      if (!on) scare();
+      setOn(!on);
+      setBleeding(!on);
     }
   });
-
-  // Runs once, on mount: the spell was typed before this component loaded.
-  useEffect(() => {
-    if (toggleOnMount) toggle();
-  }, []);
 
   useEffect(() => {
     document.documentElement.toggleAttribute("data-halloween", on);
