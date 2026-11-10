@@ -215,10 +215,17 @@ function zoneMinutes(zone: string | undefined): number | null {
   return (zone[0] === "-" ? -1 : 1) * (hours * 60 + minutes);
 }
 
+/** A title that starts with a character a spreadsheet reads as a formula
+ * (= + - @) gets an apostrophe in front, so Excel or Sheets shows the text
+ * rather than running it. The site and the editor show the apostrophe too. */
+export function guardFormula(text: string): string {
+  return /^[=+\-@]/.test(text) ? `'${text}` : text;
+}
+
 /** The title as the files hold it: commas and double quotes become ; and ',
- * so no title needs quoting. */
+ * so no title needs quoting, and a formula-looking start is guarded. */
 export function fileTitle(title: string): string {
-  return tidy(title).replace(/,/g, ";").replace(/"/g, "'");
+  return guardFormula(tidy(title).replace(/,/g, ";").replace(/"/g, "'"));
 }
 
 /** A CSV field, quoted only when it has to be, as Python's csv module does. */
@@ -231,7 +238,7 @@ function csvField(value: string): string {
 export function toGamesFile(games: readonly GameRecord[]): string {
   const sorted = [...games].sort((a, b) => compareTitles(a.title, b.title));
   const lines = [GAME_COLUMNS.join(",")];
-  for (const game of sorted) lines.push([game.id, tidy(game.title)].map(csvField).join(","));
+  for (const game of sorted) lines.push([game.id, guardFormula(tidy(game.title))].map(csvField).join(","));
   return "﻿" + lines.join("\r\n") + "\r\n";
 }
 

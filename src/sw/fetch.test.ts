@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { NETWORK_TIMEOUT_MS, networkFirst } from "./fetch.ts";
+import { cacheFirst, NETWORK_TIMEOUT_MS, networkFirst } from "./fetch.ts";
 
 /** A stand-in for the Cache API: enough for what fetch.ts calls. */
 function fakeCaches() {
@@ -59,5 +59,39 @@ describe("networkFirst", () => {
     const response = await networkFirst(request(), "shell", null);
 
     expect(await response.text()).toBe("fresh");
+  });
+});
+
+describe("cacheFirst", () => {
+  let cache: ReturnType<typeof fakeCaches>;
+
+  beforeEach(() => {
+    cache = fakeCaches();
+    vi.stubGlobal("caches", cache);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("stores a thumbnail once, whatever its query string", async () => {
+    // A page's own same-origin response is "basic"; a stand-in Response is
+    // "default", which the worker rightly won't cache.
+    const fetchMock = vi.fn(async () => {
+      const response = new Response("picture", { status: 200 });
+      Object.defineProperty(response, "type", { value: "basic" });
+      return response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const base = "https://site.example/assets/thumbnails/abcdefghijk.webp";
+
+    await cacheFirst(new Request(base), "thumbnails");
+    await new Promise((resolve) => setTimeout(resolve, 0)); // let the cache write settle
+    const again = await cacheFirst(new Request(`${base}?n=1`), "thumbnails");
+
+    expect(await again.text()).toBe("picture");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const store = cache.stores.get("thumbnails")!;
+    expect([...store.keys()]).toEqual([base]);
   });
 });

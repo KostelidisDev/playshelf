@@ -101,12 +101,26 @@ def check_url(url: str) -> None:
         raise ValueError(f"refusing to download {url}")
 
 
+class CheckedRedirects(urllib.request.HTTPRedirectHandler):
+    """Follows a redirect only to an allowed host. urllib would otherwise
+    follow a 3xx to any address, and the allowlist must hold for every hop."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        check_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+IMAGE_OPENER = urllib.request.build_opener(CheckedRedirects)
+
+
 def download(url: str) -> bytes:
     """The body of a URL, or raises HTTPError (404 is how YouTube says a
     video has no maxres thumbnail)."""
     check_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with IMAGE_OPENER.open(request, timeout=30) as response:
+        if urllib.parse.urlsplit(response.geturl()).hostname not in ALLOWED_HOSTS:
+            raise ValueError(f"refusing to use a response from {response.geturl()}")
         data = response.read(MAX_DOWNLOAD + 1)
     if len(data) > MAX_DOWNLOAD:
         raise ValueError(f"{url} is larger than {MAX_DOWNLOAD} bytes")

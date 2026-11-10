@@ -237,4 +237,18 @@ describe("writing the files", () => {
   it("makes video titles file-safe, replacing commas and double quotes", () => {
     expect(fileTitle('a, "b"')).toBe("a; 'b'");
   });
+
+  it("guards titles that a spreadsheet would read as a formula, in both files", () => {
+    expect(toGamesFile([{ id: "a", title: "=HYPERLINK(x)" }])).toContain(`${BOM}game_id,title\r\na,'=HYPERLINK(x)\r\n`);
+    expect(toVideosFile([{ id: ID, title: "+1 @ home", publishedAt: "2024-01-01", gameIds: ["a"] }]))
+      .toContain(`${ID},'+1 @ home,`);
+    expect(fileTitle("-dash")).toBe("'-dash");
+    expect(fileTitle("Plain - dash in the middle")).toBe("Plain - dash in the middle");
+  });
+
+  it("reads a guarded title back with its apostrophe, and does not add a second one on the next write", () => {
+    const once = readGames(toGamesFile([{ id: "a", title: "=x" }])).records[0]!.title;
+    expect(once).toBe("'=x");
+    expect(readGames(toGamesFile([{ id: "a", title: once }])).records[0]!.title).toBe("'=x");
+  });
 });

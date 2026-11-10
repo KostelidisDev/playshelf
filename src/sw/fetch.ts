@@ -34,12 +34,15 @@ export async function networkFirst(request: Request, cacheName: string, fallback
   return Promise.race([network.catch(() => cached), timeout]).finally(() => clearTimeout(timer));
 }
 
-/** The cached response, or the network's (cached for next time). */
+/** The cached response, or the network's (cached for next time). The key
+ * drops the query string, as networkFirst does, so only files the server
+ * has get stored: a 404 is never cached, and each file has one entry. */
 export async function cacheFirst(request: Request, cacheName: string): Promise<Response> {
   const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
+  const key = cacheKey(request.url);
+  const cached = await cache.match(key);
   if (cached) return cached;
   const response = await fetch(request);
-  if (cacheable(response)) void cache.put(request, response.clone());
+  if (cacheable(response)) void cache.put(key, response.clone());
   return response;
 }
