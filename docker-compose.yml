@@ -30,7 +30,7 @@ services:
       # The site's address. It sets the canonical link and the preview
       # image's address, and defaults to https://DOMAIN. Read when the
       # container starts.
-      SITE_URL: "${SITE_URL:-https://${DOMAIN:-playself.kostelidis.dev}}"
+      SITE_URL: "${SITE_URL:-https://${DOMAIN:-playshelf.kostelidis.dev}}"
     # The catalog (Games.txt and Videos.txt) and the thumbnails and covers
     # lie outside the image, read-only; the volumes are defined at the end.
     # With nocopy, Docker never copies the image's empty directories into
@@ -74,7 +74,7 @@ services:
       - "traefik.enable=true"
       # Router. TLS comes from the websecure entrypoint's default wildcard
       # certificate.
-      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.rule=Host(`${DOMAIN:-playself.kostelidis.dev}`)"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.rule=Host(`${DOMAIN:-playshelf.kostelidis.dev}`)"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.entrypoints=websecure"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.service=${INSTANCE_NAME:-playshelf}"
       # strict-path@file is a shared policy from the Traefik stack: a static
@@ -85,28 +85,28 @@ services:
       # its own app. The editor's pages and the files they load are served on
       # EDITOR_DOMAIN; anything else there goes to /studio/. /studio/ on DOMAIN
       # moves to the editor's host.
-      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.rule=Host(`${EDITOR_DOMAIN:-playself-studio.kostelidis.dev}`) && (PathPrefix(`/studio/`) || PathPrefix(`/assets/`))"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.rule=Host(`${EDITOR_DOMAIN:-playshelf-studio.kostelidis.dev}`) && (PathPrefix(`/studio/`) || PathPrefix(`/assets/`))"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.entrypoints=websecure"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.service=${INSTANCE_NAME:-playshelf}"
       # The editor is always behind basic auth (PLAYSHELF_AUTH, see .env.example),
       # so the catalog can't be opened by anyone who finds the host.
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.middlewares=${INSTANCE_NAME:-playshelf}-auth,strict-path@file"
-      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.rule=Host(`${EDITOR_DOMAIN:-playself-studio.kostelidis.dev}`)"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.rule=Host(`${EDITOR_DOMAIN:-playshelf-studio.kostelidis.dev}`)"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.entrypoints=websecure"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.service=${INSTANCE_NAME:-playshelf}"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.middlewares=${INSTANCE_NAME:-playshelf}-auth,${INSTANCE_NAME:-playshelf}-to-editor"
       # The users for the editor, and for the site when docker-compose.basic-auth.yml
       # is used too. Required: compose won't start without them.
       - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-auth.basicauth.users=${PLAYSHELF_AUTH:?PLAYSHELF_AUTH is required: the editor is always behind basic auth}"
-      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.rule=Host(`${DOMAIN:-playself.kostelidis.dev}`) && PathPrefix(`/studio/`)"
+      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.rule=Host(`${DOMAIN:-playshelf.kostelidis.dev}`) && PathPrefix(`/studio/`)"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.entrypoints=websecure"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.service=${INSTANCE_NAME:-playshelf}"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.middlewares=${INSTANCE_NAME:-playshelf}-studio-moved"
       - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-to-editor.redirectregex.regex=^https?://[^/]+/.*"
-      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-to-editor.redirectregex.replacement=https://${EDITOR_DOMAIN:-playself-studio.kostelidis.dev}/studio/"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-to-editor.redirectregex.replacement=https://${EDITOR_DOMAIN:-playshelf-studio.kostelidis.dev}/studio/"
       - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-to-editor.redirectregex.permanent=true"
       - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-studio-moved.redirectregex.regex=^https?://[^/]+/studio/(.*)$"
-      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-studio-moved.redirectregex.replacement=https://${EDITOR_DOMAIN:-playself-studio.kostelidis.dev}/studio/$$1"
+      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-studio-moved.redirectregex.replacement=https://${EDITOR_DOMAIN:-playshelf-studio.kostelidis.dev}/studio/$$1"
       - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-studio-moved.redirectregex.permanent=true"
       # Service
       - "traefik.http.services.${INSTANCE_NAME:-playshelf}.loadbalancer.server.port=8080"
