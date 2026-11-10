@@ -59,7 +59,10 @@ are in `src/test/`.
   `npm run preview` reads it from there (`build/csp.ts`). No inline scripts
   or styles, no `style=""` attributes, no `data:` URLs (`assetsInlineLimit:
   0`), and images only from `'self'` and `i.ytimg.com`. Any new external
-  origin needs a CSP change, and a good reason.
+  origin needs a CSP change, and a good reason. The one exception is the
+  editor's `/studio/` block in `site.conf`, which also allows
+  `https://www.youtube.com` in `connect-src` for the title lookup; the tests
+  keep it identical to the site's policy apart from that origin.
 - **Site settings**: the build is brand-neutral. `index.html` and the web
   manifest carry `__SITE_NAME__` and `__SITE_DESCRIPTION__`, and so do the
   catalog editor's page and manifest (`studio/index.html`,

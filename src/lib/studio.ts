@@ -113,6 +113,18 @@ export function parseVideoId(text: string): string | null {
   return URL_ID.exec(trimmed)?.[1] ?? null;
 }
 
+/** YouTube's oEmbed address for a video (a 11-character id, as parseVideoId
+ * gives), which answers with the video's title and no key. */
+export function oembedUrl(id: string): string {
+  return `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`;
+}
+
+/** The title in an oEmbed reply, cleaned, or null when the reply has none. */
+export function oembedTitle(reply: unknown): string | null {
+  if (typeof reply !== "object" || reply === null || !("title" in reply) || typeof reply.title !== "string") return null;
+  return cleanText(reply.title, MAX_VIDEO_TITLE_LENGTH) || null;
+}
+
 /** A published time as the picker shows it: the UTC day, hour and minute,
  * and the instant itself. Null when the value isn't a date. */
 export interface PublishedParts {

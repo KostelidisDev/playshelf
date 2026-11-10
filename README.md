@@ -219,7 +219,8 @@ browser-drawn home page needs them to render.
 
 - Runs as `www-data` on port 8080, with no Linux capabilities needed.
 - Strict Content-Security-Policy (no inline scripts or styles) and the usual
-  security headers, in `site.conf`.
+  security headers, in `site.conf`. The catalog editor's own policy (in a
+  `/studio/` block there) also lets it look up video titles on YouTube.
 - Only `GET`/`HEAD`; no directory listings, `.htaccess` or dotfiles.
 
 ## Deployment

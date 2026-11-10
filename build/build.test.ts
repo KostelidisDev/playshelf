@@ -2,10 +2,10 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { sitePolicy } from "./csp.ts";
+import { sitePolicy, studioPolicy } from "./csp.ts";
 import { shellFiles, studioShellFiles } from "./shell.ts";
 import { DEFAULT_SITE_DESCRIPTION, DEFAULT_SITE_NAME, fillHtml, fillJson, linkTags, requireSiteUrl, siteSettings } from "./site.ts";
-import { buildStandalone, htaccess } from "./standalone.ts";
+import { buildStandalone, htaccess, studioHtaccess } from "./standalone.ts";
 import { appVersion } from "./version.ts";
 
 describe("appVersion", () => {
@@ -91,6 +91,17 @@ describe("sitePolicy", () => {
   });
 });
 
+describe("studioPolicy", () => {
+  const conf = resolve(import.meta.dirname, "../site.conf");
+
+  it("is the site's policy with YouTube allowed for the title lookup, and nothing else", () => {
+    const site = sitePolicy(conf);
+    const studio = studioPolicy(conf);
+    expect(site).not.toContain("youtube");
+    expect(studio.replace("connect-src 'self' https://www.youtube.com", "connect-src 'self'")).toBe(site);
+  });
+});
+
 describe("site settings", () => {
   it("default, trim and reject control characters", () => {
     expect(siteSettings({})).toEqual({ name: DEFAULT_SITE_NAME, description: DEFAULT_SITE_DESCRIPTION });
@@ -169,6 +180,13 @@ describe("standalone build", () => {
     expect(text).toMatch(/AddOutputFilterByType DEFLATE text\/html .* image\/svg\+xml\n/);
   });
 
+  it("keeps the editor's policy out of the site's .htaccess, and puts it in the editor's folder", () => {
+    const text = readFileSync(conf, "utf8");
+    expect(htaccess(text)).not.toContain("youtube");
+    expect(studioHtaccess(text)).toContain(`Header always set Content-Security-Policy "${studioPolicy(conf)}"`);
+    expect(studioHtaccess("AddType text/csv .csv\n")).toBeNull();
+  });
+
   it("refuses a site.conf without a policy", () => {
     expect(() => htaccess("AddType text/csv .csv\n")).toThrow("site.conf");
   });
@@ -195,6 +213,7 @@ describe("standalone build", () => {
     expect(readFileSync(join(out, "studio/index.html"), "utf8")).toBe('<title>A &amp; B Catalog editor</title><meta content="Say &quot;hi&quot;">');
     expect(JSON.parse(readFileSync(join(out, "studio/manifest.webmanifest"), "utf8"))).toEqual({ name: "A & B Catalog editor" });
     expect(readFileSync(join(out, ".htaccess"), "utf8")).toContain("Content-Security-Policy");
+    expect(readFileSync(join(out, "studio/.htaccess"), "utf8")).toContain("https://www.youtube.com");
     expect(existsSync(join(out, "assets/demo/Videos.txt"))).toBe(true);
     expect(existsSync(join(out, "assets/app/index-abc.js"))).toBe(true);
     expect(existsSync(join(out, "assets/api"))).toBe(true);

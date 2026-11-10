@@ -10,6 +10,8 @@ import {
   putVideo,
   removeGame,
   newestVideoByGame,
+  oembedTitle,
+  oembedUrl,
   removeVideo,
   setPublished,
   studioPicture,
@@ -189,5 +191,20 @@ describe("publishedParts and setPublished", () => {
   it("clears the value when the day is cleared, and ignores a time without a day", () => {
     expect(setPublished("2024-05-09T08:30:30Z", { day: "" })).toBe("");
     expect(setPublished("", { hour: 3 })).toBe("");
+  });
+});
+
+describe("oembedUrl and oembedTitle", () => {
+  it("asks for the video's watch address, as JSON", () => {
+    expect(oembedUrl(ID)).toBe("https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DtW8maoQNthw&format=json");
+  });
+
+  it("reads the title from a reply, cleaned, and finds none in anything else", () => {
+    expect(oembedTitle({ title: "  Trailer\n\tof  the year ", author_name: "x" })).toBe("Trailer of the year");
+    expect(oembedTitle({ title: "   " })).toBeNull();
+    expect(oembedTitle({ author_name: "x" })).toBeNull();
+    expect(oembedTitle({ title: 42 })).toBeNull();
+    expect(oembedTitle("<html>")).toBeNull();
+    expect(oembedTitle(null)).toBeNull();
   });
 });

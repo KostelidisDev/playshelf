@@ -17,7 +17,12 @@ const file = (text: string, name: string) => new File([text], name, { type: "tex
 const createObjectURL = vi.fn((_blob: Blob) => "blob:studio-test");
 const revokeObjectURL = vi.fn();
 
+// Title lookups go to YouTube's oEmbed endpoint. The tests answer them here:
+// a 404 (no title) unless a test sets its own reply.
+let lookupReply: () => Response;
 beforeEach(() => {
+  lookupReply = () => new Response("", { status: 404 });
+  vi.stubGlobal("fetch", vi.fn(async () => lookupReply()));
   URL.createObjectURL = createObjectURL as unknown as typeof URL.createObjectURL;
   URL.revokeObjectURL = revokeObjectURL;
   // jsdom can't follow a download link; the tests read the file's blob instead.
@@ -26,6 +31,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   createObjectURL.mockClear();
   revokeObjectURL.mockClear();
 });
@@ -271,6 +277,43 @@ describe("StudioApp: videos", () => {
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(await exported(user, "Videos.txt")).toBe(`﻿${VIDEOS_HEADER}\r\n${ID_A},Timed,2024-05-09T14:05:00Z,zelda\r\n`);
+  });
+
+  it("fills the title from YouTube when the id is entered, and keeps a title typed before it", async () => {
+    lookupReply = () => new Response(JSON.stringify({ title: "Trailer from YouTube" }), { status: 200 });
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda"), videos());
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Add video" }));
+    await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_A);
+    await waitFor(() => expect(screen.getByLabelText("Title")).toHaveValue("Trailer from YouTube"));
+    expect(vi.mocked(fetch).mock.calls[0]?.[0]).toBe(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ID_A}`)}&format=json`);
+
+    await user.clear(screen.getByLabelText("Title"));
+    await user.type(screen.getByLabelText("Title"), "My own title");
+    await user.clear(screen.getByLabelText("Video ID or YouTube URL"));
+    await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_B);
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText("Looking up the title…")).not.toBeInTheDocument());
+    expect(screen.getByLabelText("Title")).toHaveValue("My own title");
+  });
+
+  it("says when YouTube has no title, and leaves the title to be typed", async () => {
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda"), videos());
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Add video" }));
+    await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_A);
+    expect(await screen.findByText("No title found for this video. Type one.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Title")).toHaveValue("");
+  });
+
+  it("doesn't look up a title when a saved video is opened for editing", async () => {
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda"), videos(`${ID_A},Old,2024-05-09,zelda`));
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Edit Old" }));
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
   it("clears the date when the picker is cleared", async () => {
