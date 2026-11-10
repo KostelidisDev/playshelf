@@ -34,6 +34,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   createObjectURL.mockClear();
   revokeObjectURL.mockClear();
+  localStorage.removeItem("playshelf-studio-youtube-key");
 });
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -296,6 +297,51 @@ describe("StudioApp: videos", () => {
     await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText("Looking up the title…")).not.toBeInTheDocument());
     expect(screen.getByLabelText("Title")).toHaveValue("My own title");
+  });
+
+  it("fills the publish date from the YouTube Data API when a key is saved, and keeps a date set by hand", async () => {
+    localStorage.setItem("playshelf-studio-youtube-key", "KEY-1");
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith("https://www.googleapis.com/")) {
+        return new Response(JSON.stringify({ items: [{ snippet: { title: "API title", publishedAt: "2009-10-24T23:57:33Z" } }] }), { status: 200 });
+      }
+      return new Response("", { status: 404 });
+    });
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda"), videos());
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Add video" }));
+    await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_A);
+    await waitFor(() => expect(screen.getByLabelText("Title")).toHaveValue("API title"));
+    expect(screen.getByLabelText("Published")).toHaveTextContent("Oct 24, 2009, 11:57 PM UTC");
+    expect(String(vi.mocked(fetch).mock.calls[0]?.[0])).toContain("key=KEY-1");
+  });
+
+  it("uses oEmbed for the title when no key is saved, and leaves the date empty", async () => {
+    lookupReply = () => new Response(JSON.stringify({ title: "Only a title" }), { status: 200 });
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda"), videos());
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Add video" }));
+    await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_A);
+    await waitFor(() => expect(screen.getByLabelText("Title")).toHaveValue("Only a title"));
+    expect(screen.getByLabelText("Published")).toHaveTextContent("Pick a date and time");
+    expect(vi.mocked(fetch).mock.calls.every(([url]) => !String(url).includes("googleapis"))).toBe(true);
+  });
+
+  it("falls back to oEmbed for the title when the key is refused", async () => {
+    localStorage.setItem("playshelf-studio-youtube-key", "BAD");
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input).startsWith("https://www.googleapis.com/")) return new Response("{}", { status: 403 });
+      return new Response(JSON.stringify({ title: "Fallback title" }), { status: 200 });
+    });
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda"), videos());
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Add video" }));
+    await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_A);
+    await waitFor(() => expect(screen.getByLabelText("Title")).toHaveValue("Fallback title"));
   });
 
   it("says when YouTube has no title, and leaves the title to be typed", async () => {

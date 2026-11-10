@@ -61,8 +61,10 @@ are in `src/test/`.
   0`), and images only from `'self'` and `i.ytimg.com`. Any new external
   origin needs a CSP change, and a good reason. The one exception is the
   editor's `/studio/` block in `site.conf`, which also allows
-  `https://www.youtube.com` in `connect-src` for the title lookup; the tests
-  keep it identical to the site's policy apart from that origin.
+  `https://www.youtube.com` (the title lookup) and
+  `https://www.googleapis.com` (the optional Data API key's publish-date
+  lookup) in `connect-src`; the tests keep it identical to the site's policy
+  apart from those origins.
 - **Site settings**: the build is brand-neutral. `index.html` and the web
   manifest carry `__SITE_NAME__` and `__SITE_DESCRIPTION__`, and so do the
   catalog editor's page and manifest (`studio/index.html`,

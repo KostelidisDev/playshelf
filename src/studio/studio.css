@@ -192,6 +192,29 @@
   margin: 0 0 16px;
 }
 
+/* The optional YouTube key panel sits at the left of the toolbar, and its
+ * form opens below the summary. */
+.studio-key {
+  margin-right: auto;
+}
+
+.studio-key-form {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  max-width: 480px;
+}
+
+.studio-key-row {
+  display: flex;
+  gap: 8px;
+}
+
+.studio-key-row input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* The site's grid of cards (`.grid`, style.css). A list, so only its
    default margin and bullets are reset. */
 .studio-grid {

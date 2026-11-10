@@ -52,6 +52,8 @@ import { fetchLiveCatalog, MAX_FILE_BYTES, type LiveFiles, type LiveResult } fro
 import { IconButton, IconOpenButton, OpenButton, Pager, RowButtons } from "./StudioControls.tsx";
 import { RecordCard } from "./RecordCard.tsx";
 import { VideoForm } from "./VideoForm.tsx";
+import { YouTubeKeyPanel } from "./YouTubeKey.tsx";
+import { loadYouTubeKey, saveYouTubeKey } from "./youtubeKey.ts";
 
 /** One of the two files, as it is in the editor. `dirty` is set once it has
  * changed since it was opened or last exported. */
@@ -95,6 +97,8 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
   const [tab, setTab] = useState<Tab>("games");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  /** The optional YouTube key, from this browser, for filling in publish dates. */
+  const [youtubeKey, setYouTubeKey] = useState(loadYouTubeKey);
   /** The id of the row whose form is open, or NEW. Only the current tab's rows. */
   const [editing, setEditing] = useState<string | null>(null);
   /** The app bar, measured so the content below it is offset the way the site's is. */
@@ -513,6 +517,15 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
           <>
             <section id="studio-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} aria-label={tab === "games" ? "Games" : "Videos"}>
               <div className="studio-toolbar">
+                {tab === "videos" && (
+                  <YouTubeKeyPanel
+                    savedKey={youtubeKey}
+                    onSave={(key) => {
+                      saveYouTubeKey(key ?? "");
+                      setYouTubeKey(key);
+                    }}
+                  />
+                )}
                 <button className="btn" type="button" disabled={editing !== null} onClick={() => setEditing(NEW)}>
                   {tab === "games" ? "Add game" : "Add video"}
                 </button>
@@ -525,6 +538,7 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
                 <VideoForm
                   initial={{ id: "", title: "", publishedAt: "", gameIds: [] }}
                   games={gameList}
+                  youtubeKey={youtubeKey}
                   onSave={(draft) => saveVideo(draft, null)}
                   onCancel={() => setEditing(null)}
                 />
@@ -573,6 +587,7 @@ export function StudioApp({ drafts = defaultDrafts, loadLive = loadLiveDefault }
                             <VideoForm
                               initial={{ id: video.id, title: video.title, publishedAt: video.publishedAt, gameIds: video.gameIds }}
                               games={gameList}
+                              youtubeKey={youtubeKey}
                               onSave={(draft) => saveVideo(draft, video.id)}
                               onCancel={() => setEditing(null)}
                             />

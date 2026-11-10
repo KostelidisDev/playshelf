@@ -94,11 +94,12 @@ describe("sitePolicy", () => {
 describe("studioPolicy", () => {
   const conf = resolve(import.meta.dirname, "../site.conf");
 
-  it("is the site's policy with YouTube allowed for the title lookup, and nothing else", () => {
+  it("is the site's policy with YouTube allowed for the title and date lookup, and nothing else", () => {
     const site = sitePolicy(conf);
     const studio = studioPolicy(conf);
     expect(site).not.toContain("youtube");
-    expect(studio.replace("connect-src 'self' https://www.youtube.com", "connect-src 'self'")).toBe(site);
+    expect(site).not.toContain("googleapis");
+    expect(studio.replace("connect-src 'self' https://www.youtube.com https://www.googleapis.com", "connect-src 'self'")).toBe(site);
   });
 });
 

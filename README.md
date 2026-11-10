@@ -114,6 +114,13 @@ picked. Add, change or delete games and videos. When you're done, click
 the two files to the server yourself, which is what makes them live. Until
 then, the site keeps showing the old files.
 
+Entering a video's ID or YouTube URL fills in its title from YouTube. The
+publish date is filled in too when a YouTube Data API key is saved (the
+"Fill publish dates from YouTube" panel on the Videos tab). The key is
+optional, stays in that browser only, and is sent only to Google's API. Create
+it in Google Cloud, enable the YouTube Data API v3, and restrict the key to
+that API.
+
 The editor reads the files and writes its download inside the page; nothing
 is sent anywhere. If the site's files can't be read, the editor says why and
 offers "Open" buttons, so the files can be picked by hand. Opening a file
@@ -220,7 +227,8 @@ browser-drawn home page needs them to render.
 - Runs as `www-data` on port 8080, with no Linux capabilities needed.
 - Strict Content-Security-Policy (no inline scripts or styles) and the usual
   security headers, in `site.conf`. The catalog editor's own policy (in a
-  `/studio/` block there) also lets it look up video titles on YouTube.
+  `/studio/` block there) also lets it look up video titles on YouTube, and
+  publish dates too when a YouTube Data API key is saved in the editor.
 - Only `GET`/`HEAD`; no directory listings, `.htaccess` or dotfiles.
 
 ## Deployment

@@ -11,17 +11,19 @@ import { gamesInTitle, parseVideoId, type FieldErrors, type VideoDraft, type Vid
 import { normalizeText } from "../lib/text.ts";
 import { DatePicker } from "./DatePicker.tsx";
 import { TextField } from "./TextField.tsx";
-import { lookUpTitle } from "./videoTitle.ts";
+import { lookUpVideo } from "./videoTitle.ts";
 
 interface Props {
   initial: VideoDraft;
   games: readonly GameRecord[];
+  /** The YouTube Data API key, when one is saved; without it only titles are looked up. */
+  youtubeKey: string | null;
   /** Returns the field errors to show, or null once the video is saved. */
   onSave: (draft: VideoDraft) => FieldErrors<VideoField> | null;
   onCancel: () => void;
 }
 
-export function VideoForm({ initial, games, onSave, onCancel }: Props) {
+export function VideoForm({ initial, games, youtubeKey, onSave, onCancel }: Props) {
   const [draft, setDraft] = useState(initial);
   const [errors, setErrors] = useState<FieldErrors<VideoField>>({});
   const [gameFilter, setGameFilter] = useState("");
@@ -31,6 +33,8 @@ export function VideoForm({ initial, games, onSave, onCancel }: Props) {
   // but one the lookup filled in changes with the video.
   const looked = useRef(parseVideoId(initial.id));
   const filled = useRef<string | null>(null);
+  // The publish time the lookup last filled in, kept the same way as the title.
+  const filledDate = useRef<string | null>(null);
   // Once the user has picked or unpicked a game, the title no longer chooses.
   const gamesTouched = useRef(false);
 
@@ -50,16 +54,27 @@ export function VideoForm({ initial, games, onSave, onCancel }: Props) {
     looked.current = id;
     const controller = new AbortController();
     const previous = filled.current;
+    const previousDate = filledDate.current;
     setLookup("loading");
-    lookUpTitle(id, controller.signal).then(
-      (title) => {
+    lookUpVideo(id, youtubeKey, controller.signal).then(
+      ({ title, publishedAt }) => {
         if (controller.signal.aborted) return;
         setLookup(title ? "idle" : "none");
-        if (!title) return;
-        filled.current = title;
+        if (publishedAt) filledDate.current = publishedAt;
+        if (!title && !publishedAt) return;
+        if (title) filled.current = title;
         setDraft((current) => {
-          if (current.title.trim() !== "" && current.title !== previous) return current;
-          return { ...current, title, gameIds: gamesFor(current.gameIds, title) };
+          // A title the user typed stays, and so does a date they set themselves.
+          const keepTitle = !title || (current.title.trim() !== "" && current.title !== previous);
+          const keepDate = !publishedAt || (current.publishedAt.trim() !== "" && current.publishedAt !== previousDate);
+          if (keepTitle && keepDate) return current;
+          const next = { ...current };
+          if (!keepTitle && title) {
+            next.title = title;
+            next.gameIds = gamesFor(current.gameIds, title);
+          }
+          if (!keepDate && publishedAt) next.publishedAt = publishedAt;
+          return next;
         });
       },
       () => {
@@ -67,7 +82,7 @@ export function VideoForm({ initial, games, onSave, onCancel }: Props) {
       },
     );
     return () => controller.abort();
-  }, [draft.id]);
+  }, [draft.id, youtubeKey]);
 
   const set = <K extends "id" | "title" | "publishedAt">(field: K) => (value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));

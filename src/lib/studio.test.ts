@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { GameRecord, VideoRecord } from "./catalog.ts";
 import {
+  dataApiUrl,
+  dataApiVideo,
   checkGameTitle,
   checkVideo,
   gamesInTitle,
@@ -228,5 +230,32 @@ describe("gamesInTitle", () => {
   it("finds every game named, and leaves out titles too short to be reliable", () => {
     expect(gamesInTitle("Zelda and Apex Legends", all)).toEqual(["zelda", "apex"]);
     expect(gamesInTitle("Go Go Go", all)).toEqual([]);
+  });
+});
+
+describe("dataApiUrl and dataApiVideo", () => {
+  it("asks for the snippet's title and publish time only, with the key", () => {
+    const url = new URL(dataApiUrl(ID, "KEY-1"));
+    expect(url.origin + url.pathname).toBe("https://www.googleapis.com/youtube/v3/videos");
+    expect(url.searchParams.get("id")).toBe(ID);
+    expect(url.searchParams.get("key")).toBe("KEY-1");
+    expect(url.searchParams.get("part")).toBe("snippet");
+    expect(url.searchParams.get("fields")).toBe("items(snippet(title,publishedAt))");
+  });
+
+  it("reads the title and publish time from a reply, in the file's form", () => {
+    expect(dataApiVideo({ items: [{ snippet: { title: " Trailer ", publishedAt: "2009-10-24T23:57:33Z" } }] }))
+      .toEqual({ title: "Trailer", publishedAt: "2009-10-24T23:57:33Z" });
+    expect(dataApiVideo({ items: [{ snippet: { title: "Trailer", publishedAt: "not a date" } }] }))
+      .toEqual({ title: "Trailer", publishedAt: null });
+    expect(dataApiVideo({ items: [{ snippet: { publishedAt: "2009-10-24T23:57:33Z" } }] }))
+      .toEqual({ title: null, publishedAt: "2009-10-24T23:57:33Z" });
+  });
+
+  it("finds no video in a reply without one", () => {
+    expect(dataApiVideo({ items: [] })).toBeNull();
+    expect(dataApiVideo({ error: { code: 403 } })).toBeNull();
+    expect(dataApiVideo({ items: [{}] })).toBeNull();
+    expect(dataApiVideo(null)).toBeNull();
   });
 });

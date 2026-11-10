@@ -139,6 +139,27 @@ export function oembedTitle(reply: unknown): string | null {
   return cleanText(reply.title, MAX_VIDEO_TITLE_LENGTH) || null;
 }
 
+/** YouTube Data API v3's video address for an id, with the key. It asks only
+ * for the snippet's title and publish time, which is all the editor reads. */
+export function dataApiUrl(id: string, key: string): string {
+  const query = new URLSearchParams({ part: "snippet", id, key, fields: "items(snippet(title,publishedAt))" });
+  return `https://www.googleapis.com/youtube/v3/videos?${query.toString()}`;
+}
+
+/** A video's title and publish time from a Data API reply, in the form the
+ * file keeps the time in. Either is null when the reply lacks it; the whole
+ * result is null when there's no video in the reply at all. */
+export function dataApiVideo(reply: unknown): { title: string | null; publishedAt: string | null } | null {
+  if (typeof reply !== "object" || reply === null || !("items" in reply) || !Array.isArray(reply.items)) return null;
+  const item: unknown = reply.items[0];
+  if (typeof item !== "object" || item === null || !("snippet" in item)) return null;
+  const snippet: unknown = item.snippet;
+  if (typeof snippet !== "object" || snippet === null) return null;
+  const title = "title" in snippet && typeof snippet.title === "string" ? cleanText(snippet.title, MAX_VIDEO_TITLE_LENGTH) || null : null;
+  const published = "publishedAt" in snippet && typeof snippet.publishedAt === "string" ? normalizePublishedAt(snippet.publishedAt) : null;
+  return { title, publishedAt: published };
+}
+
 /** A published time as the picker shows it: the UTC day, hour and minute,
  * and the instant itself. Null when the value isn't a date. */
 export interface PublishedParts {
