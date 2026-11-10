@@ -316,6 +316,49 @@ describe("StudioApp: videos", () => {
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
+  it("picks the games a looked-up title names, unless games were picked first", async () => {
+    lookupReply = () => new Response(JSON.stringify({ title: "The Legend of Zelda: Tears" }), { status: 200 });
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda", "apex,Apex Legends"), videos());
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Add video" }));
+    await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_A);
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "Zelda" })).toBeChecked());
+    expect(screen.getByRole("checkbox", { name: "Apex Legends" })).not.toBeChecked();
+  });
+
+  it("keeps the games picked by hand when a looked-up title names others", async () => {
+    lookupReply = () => new Response(JSON.stringify({ title: "The Legend of Zelda: Tears" }), { status: 200 });
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda", "apex,Apex Legends"), videos());
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Add video" }));
+    await user.click(screen.getByRole("checkbox", { name: "Apex Legends" }));
+    await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_A);
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByLabelText("Title")).toHaveValue("The Legend of Zelda: Tears"));
+    expect(screen.getByRole("checkbox", { name: "Zelda" })).not.toBeChecked();
+    await pickDate(user, "2024", "May", /May 9th, 2024/);
+    await user.click(screen.getByRole("button", { name: "Done" }));
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await exported(user, "Videos.txt")).toBe(`﻿${VIDEOS_HEADER}\r\n${ID_A},The Legend of Zelda: Tears,2024-05-09T00:00:00Z,apex\r\n`);
+  });
+
+  it("picks the games a typed title names when it is saved with no game picked", async () => {
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda", "apex,Apex Legends"), videos());
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Add video" }));
+    await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_A);
+    await user.type(screen.getByLabelText("Title"), "Apex Legends ranked");
+    await pickDate(user, "2024", "May", /May 9th, 2024/);
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await exported(user, "Videos.txt")).toBe(`﻿${VIDEOS_HEADER}\r\n${ID_A},Apex Legends ranked,2024-05-09T00:00:00Z,apex\r\n`);
+  });
+
   it("clears the date when the picker is cleared", async () => {
     const user = renderEditor();
     await openBoth(user, games("zelda,Zelda"), videos());

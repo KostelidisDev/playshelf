@@ -12,7 +12,7 @@ import {
   type GameRecord,
   type VideoRecord,
 } from "./catalog.ts";
-import { cleanText } from "./text.ts";
+import { cleanText, normalizeText } from "./text.ts";
 
 export type FieldErrors<F extends string> = Partial<Record<F, string>>;
 
@@ -111,6 +111,20 @@ export function parseVideoId(text: string): string | null {
   const trimmed = text.trim();
   if (VIDEO_ID_PATTERN.test(trimmed)) return trimmed;
   return URL_ID.exec(trimmed)?.[1] ?? null;
+}
+
+/** The ids of the games whose titles appear in a video's title, as whole
+ * words ("Go" doesn't match "Good"), ignoring case, accents and punctuation.
+ * Titles under three letters are left out: they match too much. */
+export function gamesInTitle(title: string, games: readonly GameRecord[]): string[] {
+  const words = (text: string) => ` ${normalizeText(text).split(/[^\p{L}\p{N}]+/u).filter(Boolean).join(" ")} `;
+  const haystack = words(title);
+  return games
+    .filter((game) => {
+      const needle = words(game.title);
+      return needle.trim().length >= 3 && haystack.includes(needle);
+    })
+    .map((game) => game.id);
 }
 
 /** YouTube's oEmbed address for a video (a 11-character id, as parseVideoId

@@ -1,11 +1,13 @@
 /* The form for adding a video or editing one. The games are picked from the
  * games list, with a filter for long lists. Entering a video's id or URL looks
- * up its title, which fills the title field if that's still empty. Save hands
- * the draft to the parent, which checks it and sends back the field errors. */
+ * up its title, which fills the title field if that's still empty. Games whose
+ * titles appear in the video's title are picked for it, unless the user has
+ * picked or unpicked games themselves. Save hands the draft to the parent,
+ * which checks it and sends back the field errors. */
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { GameRecord } from "../lib/catalog.ts";
-import { parseVideoId, type FieldErrors, type VideoDraft, type VideoField } from "../lib/studio.ts";
+import { gamesInTitle, parseVideoId, type FieldErrors, type VideoDraft, type VideoField } from "../lib/studio.ts";
 import { normalizeText } from "../lib/text.ts";
 import { DatePicker } from "./DatePicker.tsx";
 import { TextField } from "./TextField.tsx";
@@ -29,6 +31,14 @@ export function VideoForm({ initial, games, onSave, onCancel }: Props) {
   // but one the lookup filled in changes with the video.
   const looked = useRef(parseVideoId(initial.id));
   const filled = useRef<string | null>(null);
+  // Once the user has picked or unpicked a game, the title no longer chooses.
+  const gamesTouched = useRef(false);
+
+  // The games for a title: the ones already picked, or else those the title names.
+  const gamesFor = (current: readonly string[], title: string): readonly string[] => {
+    if (current.length > 0 || gamesTouched.current) return current;
+    return gamesInTitle(title, games);
+  };
 
   useEffect(() => {
     const id = parseVideoId(draft.id);
@@ -47,7 +57,10 @@ export function VideoForm({ initial, games, onSave, onCancel }: Props) {
         setLookup(title ? "idle" : "none");
         if (!title) return;
         filled.current = title;
-        setDraft((current) => (current.title.trim() === "" || current.title === previous ? { ...current, title } : current));
+        setDraft((current) => {
+          if (current.title.trim() !== "" && current.title !== previous) return current;
+          return { ...current, title, gameIds: gamesFor(current.gameIds, title) };
+        });
       },
       () => {
         if (!controller.signal.aborted) setLookup("none");
@@ -61,6 +74,7 @@ export function VideoForm({ initial, games, onSave, onCancel }: Props) {
   };
 
   const toggleGame = (id: string, checked: boolean) => {
+    gamesTouched.current = true;
     setDraft((current) => ({
       ...current,
       gameIds: checked ? [...current.gameIds, id] : current.gameIds.filter((gameId) => gameId !== id),
@@ -72,7 +86,10 @@ export function VideoForm({ initial, games, onSave, onCancel }: Props) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setErrors(onSave(draft) ?? {});
+    // A video saved with no game picked takes the games its title names, if any.
+    const next = { ...draft, gameIds: gamesFor(draft.gameIds, draft.title) };
+    if (next.gameIds !== draft.gameIds) setDraft(next);
+    setErrors(onSave(next) ?? {});
   }
 
   return (

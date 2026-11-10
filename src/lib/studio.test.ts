@@ -3,6 +3,7 @@ import type { GameRecord, VideoRecord } from "./catalog.ts";
 import {
   checkGameTitle,
   checkVideo,
+  gamesInTitle,
   newGameId,
   parseVideoId,
   publishedParts,
@@ -206,5 +207,26 @@ describe("oembedUrl and oembedTitle", () => {
     expect(oembedTitle({ title: 42 })).toBeNull();
     expect(oembedTitle("<html>")).toBeNull();
     expect(oembedTitle(null)).toBeNull();
+  });
+});
+
+describe("gamesInTitle", () => {
+  const all: GameRecord[] = [
+    { id: "zelda", title: "Zelda" },
+    { id: "pokemon", title: "Pokémon" },
+    { id: "go", title: "Go" },
+    { id: "apex", title: "Apex Legends" },
+  ];
+
+  it("finds the games named in a title, as whole words, ignoring case, accents and punctuation", () => {
+    expect(gamesInTitle("The Legend of ZELDA: Tears of the Kingdom", all)).toEqual(["zelda"]);
+    expect(gamesInTitle("POKEMON Scarlet – Let's play!", all)).toEqual(["pokemon"]);
+    expect(gamesInTitle("apex-legends ranked", all)).toEqual(["apex"]);
+    expect(gamesInTitle("Good morning, world", all)).toEqual([]);
+  });
+
+  it("finds every game named, and leaves out titles too short to be reliable", () => {
+    expect(gamesInTitle("Zelda and Apex Legends", all)).toEqual(["zelda", "apex"]);
+    expect(gamesInTitle("Go Go Go", all)).toEqual([]);
   });
 });
