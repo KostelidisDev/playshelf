@@ -175,6 +175,13 @@ def convert(rows: list[tuple[int, dict[str, str]]]) -> tuple[list[tuple[str, str
     return games, videos, report
 
 
+def guard_formula(text: str) -> str:
+    """A title that starts with = + - or @ gets an apostrophe in front, so a
+    spreadsheet shows it rather than running it. The studio and the site
+    (src/lib/catalog.ts, guardFormula) do the same, so the files agree."""
+    return "'" + text if text[:1] in ("=", "+", "-", "@") else text
+
+
 def write(path: Path, columns: tuple[str, ...], rows: list[list[str]]) -> None:
     """A CSV the way the studio writes it: a byte order mark (so Excel reads
     UTF-8), CRLF line ends, and quotes only where a field needs them."""
@@ -203,8 +210,8 @@ def main() -> None:
     if not videos:
         sys.exit("No usable videos; nothing written.")
 
-    write(outputs[0], GAME_COLUMNS, [[game_id, title] for game_id, title in games])
-    write(outputs[1], VIDEO_COLUMNS, [[v.id, v.title, v.published_at, v.game_id] for v in videos])
+    write(outputs[0], GAME_COLUMNS, [[game_id, guard_formula(title)] for game_id, title in games])
+    write(outputs[1], VIDEO_COLUMNS, [[v.id, guard_formula(v.title), v.published_at, v.game_id] for v in videos])
     summary = f"{len(videos)} video(s) and {len(games)} game(s) written; {len(report)} note(s) below."
     outputs[2].write_text("\n".join([summary, *report]) + "\n", encoding="utf-8")
 
