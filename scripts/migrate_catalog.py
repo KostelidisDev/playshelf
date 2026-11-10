@@ -28,8 +28,8 @@ the catalog is the maintainer's own data, and the output is copied into
 public/assets/api/ by hand. The script refuses to overwrite existing output
 unless --force is given.
 
-    python3 migrate_catalog.py                       # migration/videos.csv -> migration/
-    python3 migrate_catalog.py old.csv out-dir --force
+    python3 scripts/migrate_catalog.py                       # migration/videos.csv -> migration/
+    python3 scripts/migrate_catalog.py old.csv out-dir --force
 """
 
 from __future__ import annotations

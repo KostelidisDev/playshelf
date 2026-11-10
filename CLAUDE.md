@@ -33,8 +33,8 @@ also check it in `npm run preview` or a built image.
   of the same build (its own HTML entry, manifest and service worker, scoped
   to /studio/). Its rules are in `src/lib/studio.ts`, and it shares the file
   rules in `src/lib/catalog.ts`.
-- `src/ui/`: browser helpers (brand, tint, version, SW registration, and the
-  Halloween shriek's sound).
+- `src/ui/`: browser helpers (brand, tint, version, SW registration, saving a
+  file, and the Halloween shriek's sound).
 - `src/sw/`: the service workers, built separately: the site's `sw.ts`
   (`vite.sw.config.ts`) and the editor's `studio.ts` (`vite.studio-sw.config.ts`,
   output in `dist/studio/`). `fetch.ts` holds the fetch helpers both share.
@@ -45,9 +45,10 @@ also check it in `npm run preview` or a built image.
   from site.conf). All tested in `build/build.test.ts`.
 - `site.conf`: Apache config (headers, CSP, caching, site settings, demo
   catalog rewrite). `docker-entrypoint.sh` runs in the container.
-  `preload_media.py` runs on the maintainer's machine: it
-  fetches game covers from Twitch and video thumbnails from YouTube, and is
-  never copied into the image.
+  `scripts/` holds the maintainer's tools, which run on their own machine and
+  are never copied into the image: `preload_media.py` fetches game covers from
+  Twitch and video thumbnails from YouTube, and `migrate_catalog.py` converts
+  the old single-file catalog.
 
 Tests sit next to the code they cover (`*.test.ts[x]`); fixtures and setup
 are in `src/test/`.
@@ -62,7 +63,7 @@ are in `src/test/`.
 - **Site settings**: the build is brand-neutral. `index.html` and the web
   manifest carry `__SITE_NAME__` and `__SITE_DESCRIPTION__`, and so do the
   catalog editor's page and manifest (`studio/index.html`,
-  `studio/manifest.webmanifest`, named "<name> Catalog editor"). They're
+  `public/studio/manifest.webmanifest`, named "<name> Catalog editor"). They're
   filled in at serve time (Apache in the container, `build/site.ts` locally), escaped by
   `docker-entrypoint.sh`. Never bake a name or description into the build;
   only the standalone sites (`build/standalone.ts`) fill them in, after it.

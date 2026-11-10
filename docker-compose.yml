@@ -27,13 +27,20 @@ services:
       # The site's description (search results, link previews, installed
       # app). Also read when the container starts.
       SITE_DESCRIPTION: "${SITE_DESCRIPTION:-A hand-picked collection of YouTube videos, from any creator, grouped by game.}"
-    # The catalog (Games.txt and Videos.txt, read-only) lives outside the
-    # image; the volume is defined at the end. With nocopy, Docker never
-    # copies the image's empty directory into the data mount.
+    # The catalog (Games.txt and Videos.txt) and the thumbnails and covers
+    # lie outside the image, read-only; the volumes are defined at the end.
+    # With nocopy, Docker never copies the image's empty directories into
+    # the mounts.
     volumes:
       - type: volume
         source: data
         target: /usr/local/apache2/htdocs/assets/api
+        read_only: true
+        volume:
+          nocopy: true
+      - type: volume
+        source: thumbnails
+        target: /usr/local/apache2/htdocs/assets/thumbnails
         read_only: true
         volume:
           nocopy: true
@@ -104,11 +111,13 @@ networks:
         - subnet: ${PLAYSHELF_NETWORK_SUBNET_V4:-10.100.0.0/24}
         - subnet: ${PLAYSHELF_NETWORK_SUBNET_V6:-fd00:100::/64}
 
-# data holds Games.txt and Videos.txt: a bind mount, an NFS export or a CIFS/SMB share, set
-# by the three PLAYSHELF_DATA_VOLUME_* variables (examples in .env.example).
-# The container runs as uid/gid 82 (www-data), which must be able to read
-# it. Docker keeps a volume's settings from when it was created: after
-# changing them, `docker compose down` and `docker volume rm` the volume.
+# data holds Games.txt and Videos.txt, and thumbnails holds the video
+# thumbnails and game covers. Each is a bind mount, an NFS export or a
+# CIFS/SMB share, set by its three PLAYSHELF_*_VOLUME_* variables (examples
+# in .env.example). The container runs as uid/gid 82 (www-data), which must
+# be able to read both. Docker keeps a volume's settings from when it was
+# created: after changing them, `docker compose down` and `docker volume rm`
+# the volume.
 volumes:
   data:
     name: ${INSTANCE_NAME:-playshelf}-data
@@ -117,3 +126,10 @@ volumes:
       type: "${PLAYSHELF_DATA_VOLUME_TYPE:-none}"
       o: "${PLAYSHELF_DATA_VOLUME_OPTIONS:-bind}"
       device: "${PLAYSHELF_DATA_VOLUME_DEVICE:?PLAYSHELF_DATA_VOLUME_DEVICE is required}"
+  thumbnails:
+    name: ${INSTANCE_NAME:-playshelf}-thumbnails
+    driver: local
+    driver_opts:
+      type: "${PLAYSHELF_THUMBNAILS_VOLUME_TYPE:-none}"
+      o: "${PLAYSHELF_THUMBNAILS_VOLUME_OPTIONS:-bind}"
+      device: "${PLAYSHELF_THUMBNAILS_VOLUME_DEVICE:?PLAYSHELF_THUMBNAILS_VOLUME_DEVICE is required}"

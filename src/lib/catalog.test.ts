@@ -135,7 +135,8 @@ describe("URLs and pictures", () => {
       `${GAMES_HEADER}\nzelda,Zelda\n`,
       `${VIDEOS_HEADER}\n${ID},Hi,2022-06-20,zelda\n`,
     );
-    expect(gameImages(catalog.get("zelda")!)).toEqual([
+    const zelda = catalog.get("zelda")!;
+    expect(gameImages(zelda, zelda.videos[0])).toEqual([
       "assets/thumbnails/games/zelda.webp",
       "assets/thumbnails/tW8maoQNthw.webp",
       "https://i.ytimg.com/vi/tW8maoQNthw/hqdefault.jpg",

@@ -12,9 +12,9 @@ Pictures that are already there are skipped, so the script can be run again
 after the catalog changes. It runs on your own machine, not in the container:
 the Twitch client secret must stay out of the site.
 
-    pip install pillow
+    pip install -r scripts/requirements.txt
     export TWITCH_CLIENT_ID=... TWITCH_CLIENT_SECRET=...   # https://dev.twitch.tv/console
-    python3 preload_media.py --catalog public/assets/api --thumbnails public/assets/thumbnails
+    python3 scripts/preload_media.py --catalog public/assets/api --thumbnails public/assets/thumbnails
 
 --dry-run lists what would be fetched, with no network access. --no-covers
 or --no-thumbnails leave one kind out. --force fetches again.
@@ -248,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
     if writes_pictures and not pillow_installed():
         print(
             "Warning: Pillow is not installed, so the pictures can't be converted to WebP.\n"
-            "Install it with `pip install pillow` (or `pip install -r requirements.txt`),\n"
+            "Install it with `pip install pillow` (or `pip install -r scripts/requirements.txt`),\n"
             "or use --dry-run to list what would be fetched.",
             file=sys.stderr,
         )

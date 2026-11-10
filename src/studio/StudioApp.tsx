@@ -9,7 +9,7 @@ import {
   CatalogFormatError,
   GAMES_FILE,
   VIDEOS_FILE,
-  coverUrl,
+  gameImages,
   linkVideos,
   parseDate,
   readGames,
@@ -37,10 +37,12 @@ import {
   type VideoDraft,
   type VideoField,
 } from "../lib/studio.ts";
-import { normalizeText, plural } from "../lib/text.ts";
+import { compareTitles, normalizeText, plural } from "../lib/text.ts";
 import { siteName } from "../ui/brand.ts";
+import { saveTextFile } from "../ui/download.ts";
 import { browserDraftStore, type Draft, type DraftStore } from "./draftStore.ts";
 import { GameForm } from "./GameForm.tsx";
+import { OpenButton, Pager, RowButtons } from "./StudioControls.tsx";
 import { RecordCard } from "./RecordCard.tsx";
 import { VideoForm } from "./VideoForm.tsx";
 
@@ -164,7 +166,7 @@ export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = 
   }, [videoList]);
 
   const gameMatches = useMemo(() => {
-    const sorted = [...gameList].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+    const sorted = [...gameList].sort((a, b) => compareTitles(a.title, b.title));
     const needle = normalizeText(query.trim());
     return needle ? sorted.filter((game) => normalizeText(`${game.id} ${game.title}`).includes(needle)) : sorted;
   }, [gameList, query]);
@@ -307,10 +309,10 @@ export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = 
 
   function exportFile(kind: Tab) {
     if (kind === "games" && games) {
-      download(GAMES_FILE, toGamesFile(games.records));
+      saveTextFile(GAMES_FILE, toGamesFile(games.records));
       setGames({ records: games.records, dirty: false });
     } else if (kind === "videos" && videos) {
-      download(VIDEOS_FILE, toVideosFile(videos.records));
+      saveTextFile(VIDEOS_FILE, toVideosFile(videos.records));
       setVideos({ records: videos.records, dirty: false });
     }
   }
@@ -452,7 +454,7 @@ export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = 
                             key={game.id}
                             variant="game"
                             title={game.title}
-                            images={gameImages(game, newestVideos.get(game.id))}
+                            images={studioPictures(gameImages(game, newestVideos.get(game.id)))}
                             meta={
                               <>
                                 <span>{plural(videoCounts.get(game.id) ?? 0, "video")}</span>
@@ -522,24 +524,7 @@ export function StudioApp({ drafts = defaultDrafts }: { drafts?: DraftStore } = 
   );
 }
 
-/** Saves a file to the user's computer. */
-function download(name: string, text: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  // Revoked a moment later, so the download has started first.
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-/** A game's pictures: its cover, then its newest video's, as on the site. */
-function gameImages(game: GameRecord, newest: VideoRecord | undefined): string[] {
-  return studioPictures([coverUrl(game), ...(newest ? videoImages(newest) : [])]);
-}
-
+/** The editor sits one folder down, so the site's relative pictures need "../". */
 function studioPictures(urls: readonly string[]): string[] {
   return urls.map(studioPicture);
 }
@@ -547,43 +532,4 @@ function studioPictures(urls: readonly string[]): string[] {
 /** The skipped rows as lines for the notice. */
 function describe(skipped: readonly SkippedRow[]): string[] {
   return skipped.map((skip) => `${skip.file}${skip.row === null ? "" : ` row ${skip.row}`}: ${skip.reason}`);
-}
-
-function RowButtons({ label, disabled, onEdit, onDelete }: { label: string; disabled: boolean; onEdit: () => void; onDelete: () => void }) {
-  return (
-    <div className="studio-actions">
-      <button className="btn btn-secondary btn-small" type="button" disabled={disabled} aria-label={`Edit ${label}`} onClick={onEdit}>
-        Edit
-      </button>
-      <button className="btn btn-secondary btn-small" type="button" disabled={disabled} aria-label={`Delete ${label}`} onClick={onDelete}>
-        Delete
-      </button>
-    </div>
-  );
-}
-
-function Pager({ page, pages, onPage }: { page: number; pages: number; onPage: (page: number) => void }) {
-  if (pages <= 1) return null;
-  return (
-    <nav className="studio-pager" aria-label="Pages">
-      <button className="btn btn-secondary btn-small" type="button" disabled={page === 1} onClick={() => onPage(page - 1)}>
-        Previous
-      </button>
-      <span>Page {page} of {pages}</span>
-      <button className="btn btn-secondary btn-small" type="button" disabled={page === pages} onClick={() => onPage(page + 1)}>
-        Next
-      </button>
-    </nav>
-  );
-}
-
-/** A file picker styled as a button. The input is visually hidden but still
- * reachable from the keyboard, and the label says what it does. */
-function OpenButton({ label, primary, onFile }: { label: string; primary?: boolean | undefined; onFile: (event: ChangeEvent<HTMLInputElement>) => void }) {
-  return (
-    <label className={primary ? "btn file-button" : "btn btn-secondary file-button"}>
-      <input type="file" accept=".txt,.csv,text/plain,text/csv" className="visually-hidden" onChange={onFile} />
-      {label}
-    </label>
-  );
 }

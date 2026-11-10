@@ -46,9 +46,9 @@ RUN sed -i \
 COPY site.conf conf/extra/site.conf
 COPY --link --from=build /app/dist/ htdocs/
 
-# Mount point for the catalog, which isn't part of the image
-# (docker-compose.yml). Nothing in the container writes to it.
-RUN mkdir -p htdocs/assets/api
+# Mount points for the catalog and the thumbnails, which aren't part of the
+# image (docker-compose.yml). Nothing in the container writes to them.
+RUN mkdir -p htdocs/assets/api htdocs/assets/thumbnails
 
 # The site's name (page title, app bar, installed app) and description
 # (search results, link previews, installed app), read when the container

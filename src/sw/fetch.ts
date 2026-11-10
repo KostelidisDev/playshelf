@@ -25,8 +25,13 @@ export async function networkFirst(request: Request, cacheName: string, fallback
   const cached = (await cache.match(key))
     ?? (fallbackUrl ? await cache.match(new URL(fallbackUrl, self.location.href).href) : undefined);
   if (!cached) return network;
-  const timeout = new Promise<Response>((resolve) => setTimeout(() => resolve(cached), NETWORK_TIMEOUT_MS));
-  return Promise.race([network.catch(() => cached), timeout]);
+  // The timer is cleared once the race is settled, so a fast network doesn't
+  // leave a timer running that would keep the worker busy for nothing.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<Response>((resolve) => {
+    timer = setTimeout(() => resolve(cached), NETWORK_TIMEOUT_MS);
+  });
+  return Promise.race([network.catch(() => cached), timeout]).finally(() => clearTimeout(timer));
 }
 
 /** The cached response, or the network's (cached for next time). */

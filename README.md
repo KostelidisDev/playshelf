@@ -23,6 +23,8 @@ The catalog is two files, `assets/api/Games.txt` and `assets/api/Videos.txt`.
 The catalog isn't committed or built into the image: the container mounts the
 folder from a volume (see [Deployment](#deployment)).
 For local development, put copies in `public/assets/api/` (git-ignored).
+An older catalog that is one `videos.csv` (the game as each video's title) converts
+to the two files with `python3 scripts/migrate_catalog.py`.
 
 Until the catalog volume holds both files, the container serves a demo
 catalog (`public/assets/demo/`, built into the image) at the same URLs. The
@@ -73,22 +75,22 @@ Each game shows its cover (box art) and each video its thumbnail:
   thumbnail, and a game without a cover shows its newest video's. Game covers
   need Twitch credentials, which don't belong in the container, so the
   Docker deployment shows no covers.
-- A standalone site can serve its own copies: `preload_media.py` (below)
+- A standalone site can serve its own copies: `scripts/preload_media.py` (below)
   fetches both from Twitch and YouTube, and the files are uploaded with the
   site (see [Standalone](#standalone-shared-hosting)). Pictures that are
   already there are skipped.
 
 #### Preloading pictures
 
-`preload_media.py` runs on your own machine, with Python 3 and Pillow
-(`pip install pillow`). It needs a Twitch application for the covers: create
+`scripts/preload_media.py` runs on your own machine, with Python 3 and Pillow
+(`pip install -r scripts/requirements.txt`). It needs a Twitch application for the covers: create
 one at [dev.twitch.tv/console](https://dev.twitch.tv/console) and copy its
 Client ID and Client Secret.
 
 ```sh
 export TWITCH_CLIENT_ID=...
 export TWITCH_CLIENT_SECRET=...
-python3 preload_media.py --catalog public/assets/api --thumbnails public/assets/thumbnails
+python3 scripts/preload_media.py --catalog public/assets/api --thumbnails public/assets/thumbnails
 ```
 
 | Option           | Purpose                                                                         |
@@ -157,6 +159,7 @@ npm run standalone -- <dir>   # after build: a standalone site (see below)
 docker build -t playshelf .
 docker run --rm -p 8080:8080 -e SITE_NAME="Some Site" \
   -v "$PWD/public/assets/api:/usr/local/apache2/htdocs/assets/api:ro" \
+  -v "$PWD/public/assets/thumbnails:/usr/local/apache2/htdocs/assets/thumbnails:ro" \
   playshelf
 ```
 
@@ -192,14 +195,15 @@ image stay read-only.
 
 ## Deployment
 
-`docker-compose.basic-auth.yml` runs the image behind Traefik, with basic auth,
-a read-only filesystem, all capabilities dropped, and CPU, memory and process
-limits. `docker-compose.yml` is the same without the basic-auth middleware, for
-a site that is protected some other way (or not at all).
+`docker-compose.yml` runs the image behind Traefik, with a read-only filesystem,
+all capabilities dropped, and CPU, memory and process limits.
+`docker-compose.basic-auth.yml` is an override that puts basic auth in front of
+it, for a site that shouldn't be public. A site protected some other way uses
+`docker-compose.yml` alone.
 
 ```sh
-cp .env.example .env   # set DOMAIN, PLAYSHELF_AUTH and the data volume
-docker compose -f docker-compose.basic-auth.yml up -d
+cp .env.example .env   # set DOMAIN, EDITOR_DOMAIN, PLAYSHELF_AUTH and both data volumes
+docker compose -f docker-compose.yml -f docker-compose.basic-auth.yml up -d
 ```
 
 `PLAYSHELF_AUTH` is only read by `docker-compose.basic-auth.yml`.
@@ -219,10 +223,13 @@ and `/studio/` on `DOMAIN` moves to the editor's host. Point DNS for
 | Volume       | Mounted at (in `htdocs/`)       | Access     | Holds                    |
 | ------------ | ------------------------------- | ---------- | ------------------------ |
 | `data`       | `assets/api`                    | read-only  | `Games.txt`, `Videos.txt` |
+| `thumbnails` | `assets/thumbnails`             | read-only  | Video thumbnails and game covers |
 
-`data` is your own mount: a **bind mount**, an **NFS export** or a
-**CIFS/SMB share**, set by `PLAYSHELF_DATA_VOLUME_TYPE`, `_OPTIONS` and
-`_DEVICE`:
+Each volume is your own mount: a **bind mount**, an **NFS export** or a
+**CIFS/SMB share**. `data` is set by `PLAYSHELF_DATA_VOLUME_TYPE`, `_OPTIONS`
+and `_DEVICE`; `thumbnails` by `PLAYSHELF_THUMBNAILS_VOLUME_TYPE`, `_OPTIONS`
+and `_DEVICE`. The examples below are for `data`; `thumbnails` takes the same
+forms with its own paths:
 
 | Kind | `TYPE` | `OPTIONS`                                                           | `DEVICE`                        |
 | ---- | ------ | ------------------------------------------------------------------- | ------------------------------- |
@@ -230,15 +237,15 @@ and `/studio/` on `DOMAIN` moves to the editor's host. Point DNS for
 | NFS  | `nfs`  | `addr=192.168.1.10,nfsvers=4,ro`                                    | `:/export/playshelf/data`       |
 | CIFS | `cifs` | `addr=192.168.1.10,username=…,password=…,vers=3.0,uid=82,gid=82,ro` | `//192.168.1.10/playshelf/data` |
 
-- The container runs as uid/gid 82 (`www-data`) and only reads `data`, so it
-  must be readable by uid 82. For a bind mount, the directory must already
+- The container runs as uid/gid 82 (`www-data`) and only reads its volumes, so
+  they must be readable by uid 82. For a bind mount, the directory must already
   exist. For NFS, the export must let uid 82 read.
 - The Docker host mounts NFS and CIFS shares, so it needs `nfs-common` /
   `nfs-utils` or `cifs-utils`. For CIFS, `addr` must be an IP address and the
   password can't contain commas.
 - Docker keeps a volume's settings once it's created. After changing them,
-  run `docker compose down`, then `docker volume rm <INSTANCE_NAME>-data`,
-  then `docker compose up -d`.
+  run `docker compose down`, then `docker volume rm <INSTANCE_NAME>-data`
+  (or `-thumbnails`), then `docker compose up -d`.
 
 `.env.example` lists every setting and its default. To run several sites
 on one host, give each instance its own `.env` with a distinct
@@ -267,7 +274,7 @@ domain's root.
    if the host has `mod_rewrite`.
 3. Upload the thumbnails as `assets/thumbnails/<video_id>.webp`, and the
    covers as `assets/thumbnails/games/<game_id>.webp`. Videos without one show
-   YouTube's thumbnail. `preload_media.py` makes both on any machine (see
+   YouTube's thumbnail. `scripts/preload_media.py` makes both on any machine (see
    [Preloading pictures](#preloading-pictures)).
 
 To update, upload a newer zip's contents over the old ones. The zips contain
@@ -290,16 +297,19 @@ src/hooks/             React hooks
 src/lib/               Pure logic: catalog and CSV parsing, routing, pagination, text, the editor's rules, Halloween date and spell
 src/studio/            The catalog editor at /studio/
 src/sw/                Service workers (offline support): the site's, and the catalog editor's
-src/ui/                Browser helpers: brand, version, tint, SW registration, Halloween shriek
+src/ui/                Browser helpers: brand, version, tint, SW registration, Halloween shriek, saving a file
 studio/                The catalog editor's HTML entry (a second page of the same build)
 site.conf              Apache config: headers, caching, site settings, demo catalog
 Dockerfile             Builds and tests the site, then serves it from httpd
 docker-compose.yml     Runs the image behind Traefik (no auth)
-docker-compose.basic-auth.yml   The same, with basic auth in front
+docker-compose.basic-auth.yml   Override for docker-compose.yml: basic auth in front
 .env.example           Every setting for the compose files, with its default
 CLAUDE.md              Notes for Claude Code: commands, invariants, conventions
 docker-entrypoint.sh   Escapes the site settings for the page and the web manifest
-preload_media.py       Preloads game covers (Twitch) and video thumbnails, on your own machine
+scripts/               Tools the maintainer runs on their own machine, never in the image:
+                       preload_media.py (game covers from Twitch, video thumbnails from
+                       YouTube), migrate_catalog.py (the old single-file catalog to the
+                       two files), requirements.txt (Pillow)
 ```
 
 ## How it was built

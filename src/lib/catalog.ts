@@ -11,7 +11,7 @@
  * rules, so a file it writes loads here. */
 
 import { parseCSVTable } from "./csv.ts";
-import { cleanText, firstLetter, normalizeText } from "./text.ts";
+import { cleanText, compareTitles, firstLetter, normalizeText } from "./text.ts";
 
 export const GAMES_FILE = "Games.txt";
 export const VIDEOS_FILE = "Videos.txt";
@@ -229,7 +229,7 @@ function csvField(value: string): string {
 /** Games.txt as the studio writes it: a byte order mark (so Excel reads it
  * as UTF-8), CRLF line ends, sorted by title. */
 export function toGamesFile(games: readonly GameRecord[]): string {
-  const sorted = [...games].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+  const sorted = [...games].sort((a, b) => compareTitles(a.title, b.title));
   const lines = [GAME_COLUMNS.join(",")];
   for (const game of sorted) lines.push([game.id, tidy(game.title)].map(csvField).join(","));
   return "﻿" + lines.join("\r\n") + "\r\n";
@@ -290,9 +290,9 @@ export function videoImages(video: { readonly id: string }): string[] {
   return [thumbnailUrl(video), remoteThumbnailUrl(video)];
 }
 
-/** The pictures for a game's card: its cover, then its newest video's. */
-export function gameImages(game: Game): string[] {
-  const newest = game.videos[0];
+/** The pictures for a game's card: its cover, then its newest video's (if it
+ * has one). The editor passes its own newest video, so both show the same. */
+export function gameImages(game: { readonly id: string }, newest: { readonly id: string } | undefined): string[] {
   return [coverUrl(game), ...(newest ? videoImages(newest) : [])];
 }
 
@@ -321,7 +321,7 @@ export class Catalog {
         searchText: normalizeText(game.title),
       };
     });
-    built.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+    built.sort((a, b) => compareTitles(a.title, b.title));
     this.games = built;
     this.byId = new Map(built.map((game) => [game.id, game]));
   }

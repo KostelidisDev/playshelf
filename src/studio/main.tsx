@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "../style.css";
 import "./studio.css";
 import { StudioApp } from "./StudioApp.tsx";
+import { ErrorBoundary } from "../components/ErrorBoundary.tsx";
 import { registerServiceWorker } from "../ui/service-worker.ts";
 
 // The catalog editor is its own page (studio/index.html), with its own
@@ -12,6 +13,8 @@ registerServiceWorker();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <StudioApp />
+    <ErrorBoundary>
+      <StudioApp />
+    </ErrorBoundary>
   </StrictMode>,
 );

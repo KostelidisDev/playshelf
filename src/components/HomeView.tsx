@@ -43,7 +43,7 @@ export function HomeView({ route, page, onOpenGame, onPage, onClearFilters }: Pr
           title={game.title}
           meta={game.videos.length === 0 ? "No videos yet" : plural(game.videos.length, "video")}
           variant="game"
-          images={gameImages(game)}
+          images={gameImages(game, game.videos[0])}
           onNavigate={onOpenGame}
         />
       )}
