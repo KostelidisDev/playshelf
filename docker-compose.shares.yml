@@ -1,0 +1,45 @@
+# NFS or CIFS/SMB shares for the catalog and thumbnails, in place of the host
+# folders that docker-compose.yml mounts. Docker mounts each share itself, so
+# the Docker host needs nfs-common / nfs-utils or cifs-utils, and no fstab
+# entry. Use it after the base file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.shares.yml up -d
+#
+# Each volume below replaces the bind mount with the same target in
+# docker-compose.yml. Its settings (PLAYSHELF_DATA_VOLUME_* and
+# PLAYSHELF_THUMBNAILS_VOLUME_*, examples in .env.example) are read when the
+# volume is created. Docker keeps them after that: after changing them, run
+# `docker compose down` and `docker volume rm` the volume.
+services:
+  playshelf:
+    volumes:
+      - type: volume
+        source: data
+        target: /usr/local/apache2/htdocs/assets/api
+        read_only: true
+        volume:
+          nocopy: true
+      - type: volume
+        source: thumbnails
+        target: /usr/local/apache2/htdocs/assets/thumbnails
+        read_only: true
+        volume:
+          nocopy: true
+
+# The catalog (Games.txt and Videos.txt) and the thumbnails and covers. The
+# container runs as uid/gid 82 (www-data), which must be able to read both.
+volumes:
+  data:
+    name: ${INSTANCE_NAME:-playshelf}-data
+    driver: local
+    driver_opts:
+      type: "${PLAYSHELF_DATA_VOLUME_TYPE:-none}"
+      o: "${PLAYSHELF_DATA_VOLUME_OPTIONS:-bind}"
+      device: "${PLAYSHELF_DATA_VOLUME_DEVICE:?PLAYSHELF_DATA_VOLUME_DEVICE is required}"
+  thumbnails:
+    name: ${INSTANCE_NAME:-playshelf}-thumbnails
+    driver: local
+    driver_opts:
+      type: "${PLAYSHELF_THUMBNAILS_VOLUME_TYPE:-none}"
+      o: "${PLAYSHELF_THUMBNAILS_VOLUME_OPTIONS:-bind}"
+      device: "${PLAYSHELF_THUMBNAILS_VOLUME_DEVICE:?PLAYSHELF_THUMBNAILS_VOLUME_DEVICE is required}"

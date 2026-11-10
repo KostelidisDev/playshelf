@@ -32,22 +32,24 @@ services:
       # container starts.
       SITE_URL: "${SITE_URL:-https://${DOMAIN:-playshelf.kostelidis.dev}}"
     # The catalog (Games.txt and Videos.txt) and the thumbnails and covers
-    # lie outside the image, read-only; the volumes are defined at the end.
-    # With nocopy, Docker never copies the image's empty directories into
-    # the mounts.
+    # lie outside the image: two folders on the host, mounted read-only. For
+    # NFS or CIFS/SMB shares, docker-compose.shares.yml replaces these two
+    # mounts with volumes of its own, matched by target. create_host_path:
+    # false makes compose fail when a folder is missing, rather than creating
+    # an empty one and serving the demo catalog without a word.
     volumes:
-      - type: volume
-        source: data
+      - type: bind
+        source: ${PLAYSHELF_DATA_DIR:-/srv/playshelf/data}
         target: /usr/local/apache2/htdocs/assets/api
         read_only: true
-        volume:
-          nocopy: true
-      - type: volume
-        source: thumbnails
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${PLAYSHELF_THUMBNAILS_DIR:-/srv/playshelf/thumbnails}
         target: /usr/local/apache2/htdocs/assets/thumbnails
         read_only: true
-        volume:
-          nocopy: true
+        bind:
+          create_host_path: false
     networks:
       - playshelf
     logging: *default-logging
@@ -119,26 +121,3 @@ networks:
       config:
         - subnet: ${PLAYSHELF_NETWORK_SUBNET_V4:-10.100.0.0/24}
         - subnet: ${PLAYSHELF_NETWORK_SUBNET_V6:-fd00:100::/64}
-
-# data holds Games.txt and Videos.txt, and thumbnails holds the video
-# thumbnails and game covers. Each is a bind mount, an NFS export or a
-# CIFS/SMB share, set by its three PLAYSHELF_*_VOLUME_* variables (examples
-# in .env.example). The container runs as uid/gid 82 (www-data), which must
-# be able to read both. Docker keeps a volume's settings from when it was
-# created: after changing them, `docker compose down` and `docker volume rm`
-# the volume.
-volumes:
-  data:
-    name: ${INSTANCE_NAME:-playshelf}-data
-    driver: local
-    driver_opts:
-      type: "${PLAYSHELF_DATA_VOLUME_TYPE:-none}"
-      o: "${PLAYSHELF_DATA_VOLUME_OPTIONS:-bind}"
-      device: "${PLAYSHELF_DATA_VOLUME_DEVICE:?PLAYSHELF_DATA_VOLUME_DEVICE is required}"
-  thumbnails:
-    name: ${INSTANCE_NAME:-playshelf}-thumbnails
-    driver: local
-    driver_opts:
-      type: "${PLAYSHELF_THUMBNAILS_VOLUME_TYPE:-none}"
-      o: "${PLAYSHELF_THUMBNAILS_VOLUME_OPTIONS:-bind}"
-      device: "${PLAYSHELF_THUMBNAILS_VOLUME_DEVICE:?PLAYSHELF_THUMBNAILS_VOLUME_DEVICE is required}"

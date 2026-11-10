@@ -47,6 +47,7 @@ also check it in `npm run preview` or a built image.
   catalog rewrite). It's the one source of the CSP.
 - `docker-entrypoint.sh`: runs in the container; escapes the site settings.
 - `Dockerfile`, `docker-compose.yml`, `docker-compose.basic-auth.yml`,
+  `docker-compose.shares.yml`,
   `.env.example`: the container and its deployment.
 - `.github/workflows/`: `docker-publish.yml` (the image) and
   `standalone-release.yml` (one zip per site, attached to a release).
@@ -83,7 +84,7 @@ in `src/test/`.
   writes both, for the site and the editor alike, so a format change goes there
   first. Real data is never committed: `public/assets/api/` and
   `public/assets/thumbnails/` are git-ignored, and `public/assets/demo/` holds
-  the demo pair served while the catalog volume has neither file.
+  the demo pair served while the catalog folder has neither file.
 - **Ids**: game ids are 1-64 letters, digits, `-` or `_`. They go into URLs and
   file names (`assets/thumbnails/games/<id>.webp`), so `catalog.ts` and
   `preload_media.py` both check them. Video ids are only 11-character YouTube
@@ -98,7 +99,9 @@ in `src/test/`.
   saved copy of unsaved changes is in IndexedDB.
 - **Container**: read-only root filesystem, no capabilities, runs as `www-data`
   (uid 82) on port 8080. Site files stay root-owned. The catalog and thumbnails
-  are read-only volumes (bind, NFS or CIFS). The container writes nothing but
+  are read-only bind mounts of host folders, or, with
+  `docker-compose.shares.yml`, read-only NFS or CIFS volumes. The container
+  writes nothing but
   `/tmp`.
 - **Editor access**: the editor is always behind basic auth
   (`PLAYSHELF_AUTH`, required by `docker-compose.yml`). It's served on its own

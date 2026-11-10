@@ -25,7 +25,7 @@ serves any catalog: the site's name and description are set when it starts.
 - [Catalog editor](#catalog-editor): `/studio/`
 - [Development](#development)
 - [Docker](#docker): building and running the image
-- [Deployment](#deployment): Traefik, volumes, the editor's host
+- [Deployment](#deployment): Traefik, host folders, the editor's host
 - [Standalone (shared hosting)](#standalone-shared-hosting)
 - [Project layout](#project-layout)
 - [License](#license)
@@ -34,11 +34,11 @@ serves any catalog: the site's name and description are set when it starts.
 
 The catalog is two files, `assets/api/Games.txt` and `assets/api/Videos.txt`.
 It isn't committed to the repository or built into the image. The container
-mounts its folder from a volume (see [Deployment](#deployment)). For local
+mounts its folder from the host (see [Deployment](#deployment)). For local
 development, put copies in `public/assets/api/`, which is git-ignored.
 
-Until the catalog volume holds both files, the container serves a demo catalog
-(`public/assets/demo/`, built into the image) at the same URLs. The volume
+Until the catalog folder holds both files, the container serves a demo catalog
+(`public/assets/demo/`, built into the image) at the same URLs. The mount
 stays read-only. Once both files are there, they're used straight away:
 replace them, and the site shows the new catalog on the next visit.
 
@@ -266,7 +266,7 @@ it. To put the site behind the same login too, add the override
 protected some other way, can use the override with its own Traefik setup.
 
 ```sh
-cp .env.example .env   # set PLAYSHELF_AUTH and both data volumes; DOMAIN and EDITOR_DOMAIN default to the kostelidis.dev hosts
+cp .env.example .env   # set PLAYSHELF_AUTH and both host folders; DOMAIN and EDITOR_DOMAIN default to the kostelidis.dev hosts
 docker compose up -d                                                          # editor behind login, site open
 docker compose -f docker-compose.yml -f docker-compose.basic-auth.yml up -d   # site and editor behind login
 ```
@@ -282,34 +282,42 @@ editor's pages and the files they load, and sends any other path to `/studio/`.
 `/studio/` on `DOMAIN` moves to the editor's host. Point DNS for `EDITOR_DOMAIN`
 at the same Traefik, and make sure its certificate covers it.
 
-### Volumes
+### Host folders
 
-| Volume       | Mounted at (in `htdocs/`) | Access    | Holds                            |
-| ------------ | ------------------------- | --------- | -------------------------------- |
-| `data`       | `assets/api`              | read-only | `Games.txt`, `Videos.txt`        |
-| `thumbnails` | `assets/thumbnails`       | read-only | Video thumbnails and game covers |
+Two folders on the Docker host are mounted into the container, read-only:
 
-Each volume is your own mount: a **bind mount**, an **NFS export** or a
-**CIFS/SMB share**. `data` is set by `PLAYSHELF_DATA_VOLUME_TYPE`, `_OPTIONS`
-and `_DEVICE`. `thumbnails` is set the same way by
-`PLAYSHELF_THUMBNAILS_VOLUME_TYPE`, `_OPTIONS` and `_DEVICE`, and can be a
-different kind of share. The examples below are for `data`:
+| Setting                    | Mounted at (in `htdocs/`) | Holds                            |
+| -------------------------- | ------------------------- | -------------------------------- |
+| `PLAYSHELF_DATA_DIR`       | `assets/api`              | `Games.txt`, `Videos.txt`        |
+| `PLAYSHELF_THUMBNAILS_DIR` | `assets/thumbnails`       | Video thumbnails and game covers |
 
-| Kind | `TYPE` | `OPTIONS`                                                           | `DEVICE`                        |
-| ---- | ------ | ------------------------------------------------------------------- | ------------------------------- |
-| Bind | `none` | `bind`                                                              | `/srv/playshelf/data`           |
-| NFS  | `nfs`  | `addr=192.168.1.10,nfsvers=4,ro`                                    | `:/export/playshelf/data`       |
-| CIFS | `cifs` | `addr=192.168.1.10,username=…,password=…,vers=3.0,uid=82,gid=82,ro` | `//192.168.1.10/playshelf/data` |
+Each is a plain bind mount of a host path, so compose doesn't manage any
+volume. The folders must already exist: compose stops with an error if one is
+missing, rather than serving the demo catalog from an empty folder.
 
-- The container runs as uid and gid 82 (`www-data`) and only reads its volumes,
-  so they must be readable by uid 82. For a bind mount, the directory must
-  already exist. For NFS, the export must let uid 82 read.
-- The Docker host mounts NFS and CIFS shares, so it needs `nfs-common` /
-  `nfs-utils` or `cifs-utils`. For CIFS, `addr` must be an IP address, and the
-  password can't contain commas.
+- The container runs as uid and gid 82 (`www-data`) and only reads the
+  folders, so they must be readable by uid 82.
+- For a NFS export or a CIFS/SMB share, add `docker-compose.shares.yml`
+  (see below). Docker mounts the share itself. Alternatively, mount the share
+  on the Docker host in `/etc/fstab` (read-only, readable by uid 82) and point
+  the setting at the mount point.
+
+#### NFS and CIFS/SMB shares
+
+`docker-compose.shares.yml` replaces both host folders with Docker volumes
+that mount a share directly. Set the shares in `.env` (examples in
+`.env.example`), then start with both files:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.shares.yml up -d
+```
+
+- The Docker host needs `nfs-common` / `nfs-utils` or `cifs-utils`. For
+  CIFS, `addr` must be an IP address, and the password can't contain commas.
+- The share must let uid 82 read.
 - Docker keeps a volume's settings once it's created. After changing them, run
   `docker compose down`, then `docker volume rm <INSTANCE_NAME>-data` (or
-  `-thumbnails`), then `docker compose up -d`.
+  `-thumbnails`), then start again.
 
 `.env.example` lists every setting and its default. To run several sites on one
 host, give each instance its own `.env` with a distinct `INSTANCE_NAME` and
@@ -373,6 +381,7 @@ site.conf                       Apache config: headers, CSP, caching, site setti
 Dockerfile                      Tests and builds the site, then serves it from httpd
 docker-compose.yml              Runs the image behind Traefik; the editor requires basic auth
 docker-compose.basic-auth.yml   Override for docker-compose.yml: basic auth for the site too
+docker-compose.shares.yml       Override for docker-compose.yml: NFS or CIFS/SMB shares for the catalog and thumbnails
 docker-entrypoint.sh            Escapes the site settings for the page and the web manifests
 .env.example                    Every setting for the compose files, with its default
 CLAUDE.md                       Notes for Claude Code: commands, invariants, conventions
