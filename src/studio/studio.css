@@ -324,6 +324,99 @@
   font-size: 0.85rem;
 }
 
+/* The date picker's button matches the text fields. The calendar is the
+ * library's own, with its colours mapped onto the app's tokens. */
+.date-field {
+  position: relative;
+  min-width: 0;
+}
+
+.date-button {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 21px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.date-button:focus-visible,
+.date-button[aria-expanded="true"] {
+  outline: 0;
+  border-color: var(--primary);
+}
+
+.date-button[aria-invalid="true"] {
+  border-color: #ff8a80;
+}
+
+.date-placeholder {
+  color: var(--text-muted);
+}
+
+.date-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--glass-edge), 0 8px 24px rgb(0 0 0 / 0.5);
+  --rdp-accent-color: var(--primary);
+  --rdp-accent-background-color: var(--surface-2);
+  --rdp-today-color: var(--primary);
+  --rdp-day-width: 40px;
+  --rdp-day-height: 40px;
+}
+
+.date-time {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.date-time select {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.date-time select:focus-visible {
+  outline: 0;
+  border-color: var(--primary);
+}
+
+.date-time select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.date-time .field-hint {
+  margin-left: auto;
+}
+
+.date-popover-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .record-form {
   display: grid;
   gap: 16px;

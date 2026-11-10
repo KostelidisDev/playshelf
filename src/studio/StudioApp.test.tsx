@@ -59,6 +59,14 @@ async function exported(user: User, name: "Games.txt" | "Videos.txt"): Promise<s
   return new TextDecoder("utf-8", { ignoreBOM: true }).decode(await blob.arrayBuffer());
 }
 
+/** Opens the Published calendar, goes to the year and month, and clicks a day. */
+async function pickDate(user: User, year: string, month: string, day: RegExp) {
+  await user.click(screen.getByLabelText("Published"));
+  await user.selectOptions(screen.getByRole("combobox", { name: "Choose the Year" }), year);
+  await user.selectOptions(screen.getByRole("combobox", { name: "Choose the Month" }), month);
+  await user.click(screen.getByRole("button", { name: day }));
+}
+
 describe("StudioApp: start", () => {
   it("offers both files to open, or a new catalog", () => {
     renderEditor();
@@ -202,7 +210,7 @@ describe("StudioApp: videos", () => {
     await user.click(screen.getByRole("button", { name: "Add video" }));
 
     await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_A);
-    await user.type(screen.getByLabelText("Published"), "2024-05-09");
+    await pickDate(user, "2024", "May", /May 9th, 2024/);
     await user.type(screen.getByLabelText("Title"), "Trailer");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByText("Choose at least one game.")).toBeInTheDocument();
@@ -215,18 +223,64 @@ describe("StudioApp: videos", () => {
     expect(statusText()).toContain("Videos.txt · 1 video");
   });
 
-  it("accepts a YouTube URL as the id, and saves the date in UTC", async () => {
+  it("accepts a YouTube URL as the id, and keeps the file's time in UTC", async () => {
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda"), videos(`${ID_A},Old,2024-05-09T10:30:30+02:00,zelda`));
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Edit Old" }));
+    await user.clear(screen.getByLabelText("Video ID or YouTube URL"));
+    await user.type(screen.getByLabelText("Video ID or YouTube URL"), `https://youtu.be/${ID_A}`);
+    await user.clear(screen.getByLabelText("Title"));
+    await user.type(screen.getByLabelText("Title"), "Trailer, the one");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await exported(user, "Videos.txt")).toBe(`﻿${VIDEOS_HEADER}\r\n${ID_A},Trailer; the one,2024-05-09T08:30:30Z,zelda\r\n`);
+  });
+
+  it("keeps the time a video already has when its date is picked again", async () => {
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda"), videos(`${ID_A},Old,2024-05-09T10:30:30+02:00,zelda`));
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Edit Old" }));
+    expect(screen.getByLabelText("Published")).toHaveTextContent("May 9, 2024");
+    await pickDate(user, "2024", "June", /June 1st, 2024/);
+    expect(screen.getByLabelText("Published")).toHaveTextContent("Jun 1, 2024");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await exported(user, "Videos.txt")).toBe(`﻿${VIDEOS_HEADER}\r\n${ID_A},Old,2024-06-01T08:30:30Z,zelda\r\n`);
+  });
+
+  it("sets the time from the menus, in UTC, once a day is picked", async () => {
     const user = renderEditor();
     await openBoth(user, games("zelda,Zelda"), videos());
     await user.click(screen.getByRole("tab", { name: /Videos/ }));
     await user.click(screen.getByRole("button", { name: "Add video" }));
-    await user.type(screen.getByLabelText("Video ID or YouTube URL"), `https://youtu.be/${ID_A}`);
-    await user.type(screen.getByLabelText("Published"), "2024-05-09T10:30:30+02:00");
-    await user.type(screen.getByLabelText("Title"), "Trailer, the one");
+    await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_A);
+    await user.type(screen.getByLabelText("Title"), "Timed");
     await user.click(screen.getByRole("checkbox", { name: "Zelda" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await exported(user, "Videos.txt")).toBe(`﻿${VIDEOS_HEADER}\r\n${ID_A},Trailer; the one,2024-05-09T08:30:30Z,zelda\r\n`);
+    await user.click(screen.getByLabelText("Published"));
+    expect(screen.getByRole("combobox", { name: "Hour" })).toBeDisabled();
+    await user.selectOptions(screen.getByRole("combobox", { name: "Choose the Year" }), "2024");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Choose the Month" }), "May");
+    await user.click(screen.getByRole("button", { name: /May 9th, 2024/ }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Hour" }), "14");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Minute" }), "5");
+    expect(screen.getByLabelText("Published")).toHaveTextContent("May 9, 2024, 2:05 PM UTC");
+    await user.click(screen.getByRole("button", { name: "Done" }));
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await exported(user, "Videos.txt")).toBe(`﻿${VIDEOS_HEADER}\r\n${ID_A},Timed,2024-05-09T14:05:00Z,zelda\r\n`);
+  });
+
+  it("clears the date when the picker is cleared", async () => {
+    const user = renderEditor();
+    await openBoth(user, games("zelda,Zelda"), videos());
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
+    await user.click(screen.getByRole("button", { name: "Add video" }));
+    await pickDate(user, "2024", "May", /May 9th, 2024/);
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.getByLabelText("Published")).toHaveTextContent("Pick a date");
   });
 
   it("refuses an id the catalog already has", async () => {
@@ -235,7 +289,7 @@ describe("StudioApp: videos", () => {
     await user.click(screen.getByRole("tab", { name: /Videos/ }));
     await user.click(screen.getByRole("button", { name: "Add video" }));
     await user.type(screen.getByLabelText("Video ID or YouTube URL"), ID_A);
-    await user.type(screen.getByLabelText("Published"), "2024-05-09");
+    await pickDate(user, "2024", "May", /May 9th, 2024/);
     await user.type(screen.getByLabelText("Title"), "Again");
     await user.click(screen.getByRole("checkbox", { name: "Zelda" }));
     await user.click(screen.getByRole("button", { name: "Save" }));

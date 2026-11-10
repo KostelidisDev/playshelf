@@ -113,6 +113,34 @@ export function parseVideoId(text: string): string | null {
   return URL_ID.exec(trimmed)?.[1] ?? null;
 }
 
+/** A published time as the picker shows it: the UTC day, hour and minute,
+ * and the instant itself. Null when the value isn't a date. */
+export interface PublishedParts {
+  readonly day: string;
+  readonly hour: number;
+  readonly minute: number;
+  readonly instant: Date;
+}
+
+export function publishedParts(value: string): PublishedParts | null {
+  const utc = normalizePublishedAt(value);
+  if (!utc) return null;
+  return { day: utc.slice(0, 10), hour: Number(utc.slice(11, 13)), minute: Number(utc.slice(14, 16)), instant: new Date(utc) };
+}
+
+/** The value with its day, hour or minute changed, in the form the file keeps
+ * (UTC, to the second). A day of "" clears it. Seconds the value already has
+ * are kept, since the picker doesn't show them. */
+export function setPublished(value: string, change: { day?: string; hour?: number; minute?: number }): string {
+  const parts = publishedParts(value);
+  const day = change.day ?? parts?.day ?? "";
+  if (!day) return "";
+  const hour = change.hour ?? parts?.hour ?? 0;
+  const minute = change.minute ?? parts?.minute ?? 0;
+  const seconds = parts ? parts.instant.toISOString().slice(17, 19) : "00";
+  return `${day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${seconds}Z`;
+}
+
 /** Checks a video. The games must exist (they come from the games list),
  * and there must be at least one. On success the record is cleaned, and its
  * date is saved in the studio's form (UTC). */

@@ -5,11 +5,13 @@ import {
   checkVideo,
   newGameId,
   parseVideoId,
+  publishedParts,
   putGame,
   putVideo,
   removeGame,
   newestVideoByGame,
   removeVideo,
+  setPublished,
   studioPicture,
   videosOfGame,
 } from "./studio.ts";
@@ -167,5 +169,25 @@ describe("studioPicture", () => {
   it("steps up out of /studio/ for the site's pictures, and leaves remote ones", () => {
     expect(studioPicture("assets/thumbnails/games/zelda.webp")).toBe("../assets/thumbnails/games/zelda.webp");
     expect(studioPicture("https://i.ytimg.com/vi/x/hqdefault.jpg")).toBe("https://i.ytimg.com/vi/x/hqdefault.jpg");
+  });
+});
+
+describe("publishedParts and setPublished", () => {
+  it("reads the UTC day, hour and minute of a value", () => {
+    expect(publishedParts("2024-05-09T10:30:30+02:00")).toMatchObject({ day: "2024-05-09", hour: 8, minute: 30 });
+    expect(publishedParts("2024-05-09")).toMatchObject({ day: "2024-05-09", hour: 0, minute: 0 });
+    expect(publishedParts("nope")).toBeNull();
+  });
+
+  it("sets the day, keeping the time, and the time, keeping the day", () => {
+    expect(setPublished("2024-05-09T08:30:30Z", { day: "2024-06-01" })).toBe("2024-06-01T08:30:30Z");
+    expect(setPublished("2024-05-09T08:30:30Z", { hour: 14, minute: 5 })).toBe("2024-05-09T14:05:30Z");
+    expect(setPublished("", { day: "2024-05-09" })).toBe("2024-05-09T00:00:00Z");
+    expect(setPublished("2024-05-09", { minute: 7 })).toBe("2024-05-09T00:07:00Z");
+  });
+
+  it("clears the value when the day is cleared, and ignores a time without a day", () => {
+    expect(setPublished("2024-05-09T08:30:30Z", { day: "" })).toBe("");
+    expect(setPublished("", { hour: 3 })).toBe("");
   });
 });

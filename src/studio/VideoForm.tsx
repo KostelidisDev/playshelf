@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import type { GameRecord } from "../lib/catalog.ts";
 import type { FieldErrors, VideoDraft, VideoField } from "../lib/studio.ts";
 import { normalizeText } from "../lib/text.ts";
+import { DatePicker } from "./DatePicker.tsx";
 import { TextField } from "./TextField.tsx";
 
 interface Props {
@@ -44,15 +45,11 @@ export function VideoForm({ initial, games, onSave, onCancel }: Props) {
     <form className="record-form" onSubmit={submit} noValidate>
       <div className="record-form-grid">
         <TextField id="video-id" label="Video ID or YouTube URL" value={draft.id} onChange={set("id")} error={errors.id} />
-        <TextField
-          id="video-published"
-          label="Published"
-          placeholder="2024-05-09T10:30:30Z"
-          hint="A date, or a date and time. Without a time zone, UTC is used."
-          value={draft.publishedAt}
-          onChange={set("publishedAt")}
-          error={errors.publishedAt}
-        />
+        <div className="field">
+          <label htmlFor="video-published" className="field-label">Published</label>
+          <DatePicker id="video-published" value={draft.publishedAt} onChange={set("publishedAt")} error={errors.publishedAt} />
+          {errors.publishedAt && <p id="video-published-error" className="field-error">{errors.publishedAt}</p>}
+        </div>
         <TextField
           id="video-title"
           label="Title"
