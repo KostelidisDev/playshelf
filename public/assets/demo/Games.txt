@@ -1,0 +1,4 @@
+﻿game_id,title
+clair-obscur-expedition-33,Clair Obscur: Expedition 33
+kingdom-hearts-iii,KINGDOM HEARTS III
+hades-ii,Hades II
