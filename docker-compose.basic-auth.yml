@@ -1,16 +1,13 @@
-# Basic auth in front of the site and the catalog editor. It's an override for
-# docker-compose.yml, which holds everything else, so the two can't drift apart:
+# Basic auth in front of the site too. The catalog editor is always behind it
+# (docker-compose.yml), and the users come from PLAYSHELF_AUTH there. This
+# override adds the same middleware to the site's routers, so the site needs
+# a login as well:
 #
 #   docker compose -f docker-compose.yml -f docker-compose.basic-auth.yml up -d
 #
-# The middlewares below replace the ones docker-compose.yml sets on the same
-# routers, and add the auth middleware in front of them.
+# The middleware replaces the one docker-compose.yml sets on the same routers.
 services:
   playshelf:
     labels:
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}.middlewares=${INSTANCE_NAME:-playshelf}-auth,strict-path@file"
-      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor.middlewares=${INSTANCE_NAME:-playshelf}-auth,strict-path@file"
-      - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-editor-home.middlewares=${INSTANCE_NAME:-playshelf}-auth,${INSTANCE_NAME:-playshelf}-to-editor"
       - "traefik.http.routers.${INSTANCE_NAME:-playshelf}-studio-moved.middlewares=${INSTANCE_NAME:-playshelf}-auth,${INSTANCE_NAME:-playshelf}-studio-moved"
-      # The users come from PLAYSHELF_AUTH (see .env.example).
-      - "traefik.http.middlewares.${INSTANCE_NAME:-playshelf}-auth.basicauth.users=${PLAYSHELF_AUTH:?PLAYSHELF_AUTH is required}"

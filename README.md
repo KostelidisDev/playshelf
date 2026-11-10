@@ -226,16 +226,17 @@ browser-drawn home page needs them to render.
 
 `docker-compose.yml` runs the image behind Traefik, with a read-only filesystem,
 all capabilities dropped, and CPU, memory and process limits.
-`docker-compose.basic-auth.yml` is an override that puts basic auth in front of
-it, for a site that shouldn't be public. A site protected some other way uses
-`docker-compose.yml` alone.
+The catalog editor is always behind basic auth: `docker-compose.yml` requires
+`PLAYSHELF_AUTH` (htpasswd users, see `.env.example`) and won't start without
+it. To put the site behind the same login, add the override
+`docker-compose.basic-auth.yml`. A site that shouldn't be public at all, or is
+protected some other way, uses the override with its own Traefik setup.
 
 ```sh
 cp .env.example .env   # set PLAYSHELF_AUTH and both data volumes; DOMAIN and EDITOR_DOMAIN default to the kostelidis.dev hosts
-docker compose -f docker-compose.yml -f docker-compose.basic-auth.yml up -d
+docker compose up -d                                                  # editor behind login, site open
+docker compose -f docker-compose.yml -f docker-compose.basic-auth.yml up -d   # site and editor behind login
 ```
-
-`PLAYSHELF_AUTH` is only read by `docker-compose.basic-auth.yml`.
 
 ### The catalog editor's host
 
@@ -330,8 +331,8 @@ src/ui/                Browser helpers: brand, version, tint, SW registration, H
 studio/                The catalog editor's HTML entry (a second page of the same build)
 site.conf              Apache config: headers, caching, site settings, demo catalog
 Dockerfile             Builds and tests the site, then serves it from httpd
-docker-compose.yml     Runs the image behind Traefik (no auth)
-docker-compose.basic-auth.yml   Override for docker-compose.yml: basic auth in front
+docker-compose.yml     Runs the image behind Traefik; the editor requires basic auth
+docker-compose.basic-auth.yml   Override for docker-compose.yml: basic auth for the site too
 .env.example           Every setting for the compose files, with its default
 CLAUDE.md              Notes for Claude Code: commands, invariants, conventions
 docker-entrypoint.sh   Escapes the site settings for the page and the web manifest
