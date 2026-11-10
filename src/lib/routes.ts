@@ -26,6 +26,17 @@ export function parseRoute(search: string): RouteState {
   };
 }
 
+/** Whether a link may go where it points: a relative address (the app's own
+ * pages and files) or an http(s) one. Any other scheme (javascript:, data:)
+ * and protocol-relative addresses (//host) are refused. Browsers ignore
+ * control characters and spaces inside a URL, so they're ignored here too:
+ * "java\tscript:" would otherwise get past the check. */
+export function isSafeHref(href: string): boolean {
+  const read = href.replace(/[\u0000-\u0020]/g, "");
+  if (/^[a-z][a-z0-9+.-]*:/i.test(read)) return /^https?:/i.test(read);
+  return !/^[/\\]{2}/.test(read);
+}
+
 /** The grid's URL, leaving out default values. */
 export function homeUrl({ query = "", letter = null, page = 1 }: { query?: string; letter?: string | null; page?: number } = {}): string {
   const params = new URLSearchParams();
