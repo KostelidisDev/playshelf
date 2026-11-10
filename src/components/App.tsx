@@ -12,7 +12,7 @@ import type { Catalog } from "../lib/catalog.ts";
 import { AppBar, BRAND } from "./AppBar.tsx";
 import { Footer } from "./Footer.tsx";
 import { GameView } from "./GameView.tsx";
-import { Halloween } from "./Halloween.tsx";
+import { HalloweenGate } from "./HalloweenGate.tsx";
 import { HomeView } from "./HomeView.tsx";
 import { LetterStrip } from "./LetterStrip.tsx";
 import { Message } from "./Message.tsx";
@@ -116,7 +116,7 @@ export function App({ router, loadCatalog }: Props) {
       </AppBar>
       <main id="main" className="main">{content}</main>
       <Footer />
-      <Halloween />
+      <HalloweenGate />
     </div>
   );
 }
