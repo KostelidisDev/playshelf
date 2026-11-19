@@ -21,7 +21,7 @@ RUN APP_VERSION="${BUILD_VERSION:-"$(TZ="$BUILD_TZ" date +'v%Y.%m.%d-build%H%M%S
     && npm run build \
     && echo "Built version $APP_VERSION"
 
-FROM httpd:2.4.69-alpine3.24
+FROM httpd:2.4.70-alpine3.24
 
 # - Turn on compression, cache headers, placeholder substitution (the
 #   site's name and description) and rewrites (the demo catalog)
